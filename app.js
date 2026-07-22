@@ -1,13 +1,10 @@
 // Array to hold up to 6 base64 images
 const uploadedImages = new Array(6).fill(null);
-let customApiKey = localStorage.getItem('user_gemini_api_key') || "";
 
 // Initialize Upload Grid
 window.onload = function() {
   renderUploadGrid();
-  if (customApiKey) {
-    document.getElementById('apiKeyStatus').innerText = "API Key: Custom (Tersimpan)";
-  }
+  updateApiKeyStatus();
 };
 
 function renderUploadGrid() {
@@ -73,34 +70,47 @@ function removeImage(event, index) {
   showToast(`Produk ${index + 1} dihapus`);
 }
 
-function getApiKey() {
-  return customApiKey || "";
-}
+// API Key functions are now in config.js
 
 function toggleApiKeyModal() {
   const modal = document.getElementById('apiKeyModal');
   modal.classList.toggle('hidden');
   if (!modal.classList.contains('hidden')) {
-    document.getElementById('customApiKeyInput').value = customApiKey;
+    const currentKey = localStorage.getItem('user_gemini_api_key') || '';
+    document.getElementById('customApiKeyInput').value = currentKey;
   }
 }
 
 function saveApiKey() {
   const val = document.getElementById('customApiKeyInput').value.trim();
-  customApiKey = val;
   if (val) {
     localStorage.setItem('user_gemini_api_key', val);
-    document.getElementById('apiKeyStatus').innerText = "API Key: Custom (Tersimpan)";
-    showToast("API Key tersimpan!");
+    showToast("API Key kustom tersimpan!");
   } else {
     localStorage.removeItem('user_gemini_api_key');
-    document.getElementById('apiKeyStatus').innerText = "API Key (Default/User)";
-    showToast("Menggunakan API Key bawaan.");
+    showToast("Menggunakan API Key default.");
   }
+  updateApiKeyStatus();
   toggleApiKeyModal();
 }
 
+function updateApiKeyStatus() {
+  const statusEl = document.getElementById('apiKeyStatus');
+  if (localStorage.getItem('user_gemini_api_key')) {
+    statusEl.innerText = "API Key: Custom (Tersimpan)";
+  } else {
+    statusEl.innerText = "API Key: Default";
+  }
+}
+
 async function generateAllMockups() {
+  // Check if API key is configured
+  if (!isApiKeyConfigured()) {
+    showToast("API Key belum dikonfigurasi. Silakan klik tombol API Key untuk mengkonfigurasi.", "fa-circle-exclamation");
+    toggleApiKeyModal();
+    return;
+  }
+  
   const activeImages = uploadedImages.filter(x => x !== null);
   if (activeImages.length === 0) {
     showToast("Silakan unggah minimal 1 gambar produk!", "fa-circle-exclamation");
