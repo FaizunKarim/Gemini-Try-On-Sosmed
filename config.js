@@ -1,13 +1,12 @@
 // API Key Configuration
-// Menggunakan environment variable dari Vercel
-// Di Vercel dashboard, set environment variable: GEMINI_API_KEY
-
-const GEMINI_API_KEY = `${GEMINI_API_KEY}`;
+// API key dibaca server-side via Vercel Serverless Function (/api/proxy.js)
+// Environment variable GEMINI_API_KEY harus diset di Vercel Dashboard
 
 function getApiKey() {
-  return GEMINI_API_KEY || '';
+  // Tidak perlu API key di client — proxy server yang handle
+  return 'configured-on-server';
 }
 
 function isApiKeyConfigured() {
-  return getApiKey() !== '';
+  return true;
 }

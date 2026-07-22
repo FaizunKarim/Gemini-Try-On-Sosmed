@@ -219,12 +219,6 @@ async function loadImageFromUrl(index) {
 async function generateAllMockups() {
   console.log('Generate button clicked');
   
-  // Check if API key is configured
-  if (!isApiKeyConfigured()) {
-    showToast("API Key belum dikonfigurasi. Periksa environment variable di Vercel.", "fa-circle-exclamation");
-    return;
-  }
-  
   const activeImages = uploadedImages.filter(x => x !== null);
   console.log('Active images:', activeImages.length);
   
@@ -294,8 +288,7 @@ async function generateAllMockups() {
 }
 
 async function generateImageAi(images, gender, style) {
-  const apiKey = getApiKey();
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${apiKey}`;
+  const apiUrl = `/api/proxy?model=gemini-3.1-flash-image-preview`;
 
   // Smart Prompt: Instruksi ke Gemini untuk membingkai (framing) berdasarkan jenis pakaian
   const promptText = `A professional 1:1 square aspect ratio fashion lookbook photograph ideal for social media feed posts. An Indonesian ${gender.toLowerCase()} fashion model wearing the clothing item(s) shown in the reference images. 
@@ -351,8 +344,7 @@ Background setting: ${style}. Photorealistic, commercial fashion campaign qualit
 }
 
 async function generateCaptionAi(images, gender, style) {
-  const apiKey = getApiKey();
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+  const apiUrl = `/api/proxy?model=gemini-3-flash-preview`;
 
   const promptText = `Bertindaklah sebagai Senior Fashion Copywriter & Performance Marketer kelas atas untuk brand lokal Indonesia.
 
