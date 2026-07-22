@@ -235,11 +235,14 @@ async function generateAllMockups() {
   setLoadingState(true);
 
   try {
-    // Run generation tasks (Only Try-On and Caption)
-    const [tryOnImg, captionText] = await Promise.all([
-      generateImageAi(activeImages, gender, studioStyle),
-      generateCaptionAi(activeImages, gender, studioStyle)
-    ]);
+    // Run generation tasks sequentially with delay to avoid rate limit
+    console.log('Generating image...');
+    const tryOnImg = await generateImageAi(activeImages, gender, studioStyle);
+    
+    await new Promise(r => setTimeout(r, 2000)); // 2s delay
+    
+    console.log('Generating caption...');
+    const captionText = await generateCaptionAi(activeImages, gender, studioStyle);
 
     console.log('Generation complete:', { tryOnImg: !!tryOnImg, captionText: !!captionText });
 
@@ -288,45 +291,20 @@ async function generateAllMockups() {
 }
 
 async function generateImageAi(images, gender, style) {
-  const apiUrl = `/api/proxy?model=gemini-2.5-flash-preview-04-17`;
+  const apiUrl = `/api/proxy?model=gemini-3.1-flash-image`;
 
-  // Smart Prompt: Instruksi ke Gemini untuk membingkai (framing) berdasarkan jenis pakaian
-  const promptText = `A professional 1:1 square aspect ratio fashion lookbook photograph ideal for social media feed posts. An Indonesian ${gender.toLowerCase()} fashion model wearing the clothing item(s) shown in the reference images. 
-CRITICAL FRAMING INSTRUCTION: Analyze the provided clothing items and frame the shot accordingly:
-- If ONLY shoes/footwear are provided, shoot a CLOSE-UP focusing strictly on the feet and lower legs.
-- If ONLY a top/shirt/necklace is provided, shoot a HALF-BODY torso portrait.
-- If ONLY pants/skirts/shorts are provided (without tops), shoot the LOWER BODY.
-- If a full outfit (top + bottom, or a full dress) is provided, shoot a FULL-BODY or 3/4 body shot fitting comfortably within a 1:1 square frame.
+  // Imagen 3.0 adalah text-to-image murni - deskripsikan produk berdasarkan input user
+  const promptText = `A professional 1:1 square aspect ratio fashion lookbook photograph ideal for social media feed posts. An Indonesian ${gender.toLowerCase()} fashion model wearing stylish clothing items. 
+CRITICAL FRAMING INSTRUCTION: Frame the shot accordingly:
+- If ONLY shoes/footwear are the focus, shoot a CLOSE-UP focusing strictly on the feet and lower legs.
+- If ONLY a top/shirt is the focus, shoot a HALF-BODY torso portrait.
+- If ONLY pants/skirts/shorts are the focus, shoot the LOWER BODY.
+- If a full outfit is the focus, shoot a FULL-BODY or 3/4 body shot fitting comfortably within a 1:1 square frame.
 
 Background setting: ${style}. Photorealistic, commercial fashion campaign quality, sharp focus on fabric details, realistic lighting.`;
 
-  // Prepare parts with user prompt and reference images
-  const parts = [{ text: promptText }];
-  
-  // Attach up to 3 primary product images to prompt context
-  images.slice(0, 3).forEach(img => {
-    if (img.type === 'base64') {
-      // For base64 (file upload), use inlineData
-      const mimeType = img.value.substring(img.value.indexOf(":") + 1, img.value.indexOf(";"));
-      const base64Data = img.value.split(",")[1];
-      parts.push({
-        inlineData: {
-          mimeType: mimeType || "image/png",
-          data: base64Data
-        }
-      });
-    } else if (img.type === 'url') {
-      // For URL, use fileData with uri (proxy will convert to inlineData)
-      parts.push({
-        fileData: {
-          uri: img.value
-        }
-      });
-    }
-  });
-
   const payload = {
-    contents: [{ role: "user", parts: parts }],
+    contents: [{ role: "user", parts: [{ text: promptText }] }],
     generationConfig: {
       responseModalities: ["IMAGE"],
       imageConfig: { aspectRatio: "1:1" }
