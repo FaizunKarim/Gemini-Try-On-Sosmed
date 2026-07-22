@@ -228,6 +228,14 @@ function toggleApiKeyModal() {
   }
 }
 
+function useDefaultApiKey() {
+  // Remove custom API key from localStorage to use default
+  localStorage.removeItem('user_gemini_api_key');
+  updateApiKeyStatus();
+  toggleApiKeyModal();
+  showToast("Menggunakan API Key default.");
+}
+
 function saveApiKey() {
   const val = document.getElementById('customApiKeyInput').value.trim();
   if (val) {
