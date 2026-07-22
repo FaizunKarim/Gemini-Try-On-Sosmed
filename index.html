@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="dicoding:email" content="muhammadfaizun.23178@mhs.unesa.ac.id">
+  <title>Fashion Mockup and Caption Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 antialiased flex flex-col justify-between">
+
+  <!-- Top Navigation / Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-indigo-200">
+          <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+        </div>
+        <div>
+          <span class="font-extrabold text-slate-900 tracking-tight text-lg">Fashion Mockup AI</span>
+          <span class="hidden sm:inline-block ml-2 px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-full border border-indigo-100">UMKM Edition</span>
+        </div>
+      </div>
+      
+      <!-- API Key Setting Button -->
+      <button onclick="toggleApiKeyModal()" class="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg transition">
+        <i class="fa-solid fa-key text-amber-500"></i>
+        <span id="apiKeyStatus">API Key (Default/User)</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-5xl mx-auto px-4 py-8 sm:py-10 w-full flex-grow">
+    
+    <!-- Title Section -->
+    <div class="text-center mb-10">
+      <div class="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-amber-500/10 to-indigo-500/10 text-indigo-700 rounded-full text-xs font-bold mb-3 border border-indigo-200/50">
+        <i class="fa-solid fa-sparkles text-amber-500"></i> Ditenagai Generative AI Gemini 3.1
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">Fashion Mockup Generator</h1>
+      <p class="text-slate-500 mt-2 text-base max-w-xl mx-auto">
+        Buat & unduh <span class="font-semibold text-slate-700">*mockup* persegi (1:1)</span> untuk postingan feed media sosial dari foto produk Anda secara otomatis.
+      </p>
+    </div>
+
+    <!-- Main Card Container -->
+    <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 p-6 sm:p-8 space-y-8">
+      
+      <!-- Section 1: Pengaturan Model -->
+      <div class="space-y-4">
+        <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
+          <div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">1</div>
+          <h2 class="text-lg font-bold text-slate-900">Pengaturan Model</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
+          <!-- Gender Select -->
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Jenis Kelamin Model</label>
+            <div class="flex items-center gap-6 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
+              <label class="inline-flex items-center gap-2.5 cursor-pointer group">
+                <input type="radio" name="gender" value="Laki-laki" checked class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-slate-300">
+                <span class="text-slate-700 font-semibold group-hover:text-indigo-600 transition text-sm">Laki-laki</span>
+              </label>
+              <label class="inline-flex items-center gap-2.5 cursor-pointer group">
+                <input type="radio" name="gender" value="Perempuan" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-slate-300">
+                <span class="text-slate-700 font-semibold group-hover:text-indigo-600 transition text-sm">Perempuan</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Studio Style / Setting -->
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Gaya / Setting Latar</label>
+            <div class="relative">
+              <select id="studioStyle" class="w-full bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-300 ease-out hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-100/50 hover:-translate-y-0.5">
+                <option value="Studio Minimalis Bersih (Latar Putih/Abu)">Studio Minimalis Bersih (Putih/Netral)</option>
+                <option value="Kafe/Urban Streetwear Modern">Urban / Outdoor Kafe Aesthetic</option>
+                <option value="Taman & Cahaya Matahari Alami">Outdoor Nature & Sunlight</option>
+                <option value="Interior Kamar Aesthetic">Interior Studio Modern</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Unggah Gambar Produk -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">2</div>
+            <h2 class="text-lg font-bold text-slate-900">Unggah Gambar Produk</h2>
+          </div>
+          <span class="text-xs text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full font-bold border border-indigo-100" id="uploadedCountText">0 / 6 Terisi</span>
+        </div>
+        
+        <p class="text-xs sm:text-sm text-slate-500">
+          Unggah hingga 6 gambar terpisah (atasan, bawahan, sepatu, aksesoris, dll).
+        </p>
+
+        <!-- 6 Slot Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4" id="uploadGrid">
+          <!-- JS will populate 6 upload slots -->
+        </div>
+      </div>
+
+      <!-- Generate Button Section -->
+      <div class="pt-4 pb-2 text-center">
+        <button id="btnGenerate" onclick="generateAllMockups()" class="w-full sm:w-[80%] md:w-auto bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-4 px-8 rounded-2xl shadow-xl shadow-indigo-200/80 hover:shadow-indigo-300 transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center gap-3 mx-auto text-sm sm:text-base ring-4 ring-indigo-50/50">
+          <i class="fa-solid fa-wand-magic-sparkles text-amber-300 text-lg"></i>
+          <span>Generate Mockup & Caption</span>
+        </button>
+      </div>
+
+      <!-- Section 3: Hasil Generate (Format 1:1) -->
+      <div class="space-y-6 pt-4 border-t border-slate-100">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">3</div>
+          <h2 class="text-lg font-bold text-slate-900">Hasil Generate (Format 1:1 Feed)</h2>
+        </div>
+
+        <!-- Single Column Display Container for Try-On & Caption -->
+        <div class="flex flex-col items-center w-full max-w-md mx-auto space-y-6">
+
+          <!-- Try-On Model Box (Centered) -->
+          <div class="flex flex-col items-center w-full">
+            <h3 class="font-bold text-slate-700 mb-3 text-sm flex items-center gap-2">
+              <i class="fa-solid fa-user-check text-indigo-500"></i> Tampilan Model (Try-On AI)
+            </h3>
+            <div id="boxTryOn" class="w-full aspect-square bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 p-6 text-center overflow-hidden relative group">
+              <div class="flex flex-col items-center" id="tryOnPlaceholder">
+                <div class="w-16 h-16 rounded-2xl bg-white/80 shadow-sm flex items-center justify-center mb-3 text-slate-300">
+                  <i class="fa-regular fa-image text-3xl"></i>
+                </div>
+                <span class="text-xs font-medium text-slate-400">Hasil gambar akan muncul di sini.</span>
+              </div>
+              <img id="imgTryOn" class="hidden w-full h-full object-cover rounded-xl" alt="Model Try-On Result">
+              
+              <!-- Download Overlay -->
+              <div id="overlayTryOn" class="hidden absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+          <!-- Section 4: Auto AI Caption Generator (Selalu Tampil, Terkunci Sebelum Generate) -->
+          <div id="captionContainer" class="w-full p-5 bg-gradient-to-br from-indigo-50/60 to-violet-50/60 rounded-2xl border border-indigo-100/80 shadow-sm transition-all duration-300 opacity-70">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-bullhorn text-indigo-600 text-sm"></i>
+                <h3 class="font-bold text-slate-800 text-sm">Caption Promosi AI</h3>
+              </div>
+              <span id="captionStatusBadge" class="text-[10px] font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200 flex items-center gap-1">
+                <i class="fa-solid fa-lock text-[9px]"></i> Terkunci
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between mb-2">
+              <p id="captionInstruction" class="text-[11px] text-slate-500">Tekan 'Generate Mockup & Caption' untuk membuka & membuat isi kolom ini.</p>
+              <button id="btnCopyCaption" disabled onclick="copyCaption()" class="text-xs font-bold text-slate-400 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-not-allowed opacity-60">
+                <i class="fa-regular fa-copy"></i> Salin Teks
+              </button>
+            </div>
+
+            <textarea id="captionText" rows="10" disabled class="w-full bg-slate-100/80 p-4 rounded-xl border border-indigo-100/80 text-xs sm:text-sm text-slate-500 font-sans focus:outline-none leading-relaxed resize-y cursor-not-allowed" placeholder="Kolom caption terkunci. Hasil copywriting AI akan otomatis terisi di sini setelah Anda melakukan Generate..."></textarea>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center py-6 text-xs text-slate-400 border-t border-slate-200 bg-white mt-10">
+    <div class="max-w-5xl mx-auto px-4">
+      Ditenagai oleh Gemini API (Model: Gemini 3.1 Flash Image & Gemini 3 Flash)
+    </div>
+  </footer>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl text-xs font-medium translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-2">
+    <i class="fa-solid fa-circle-info text-indigo-400" id="toastIcon"></i>
+    <span id="toastMessage">Pesan pemberitahuan...</span>
+  </div>
+
+  <!-- API Key Modal -->
+  <div id="apiKeyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity">
+    <div class="bg-white rounded-3xl p-5 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 space-y-5 transform scale-100 transition-transform">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 text-base sm:text-lg flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center"><i class="fa-solid fa-key text-sm"></i></div> Set Gemini API Key
+        </h3>
+        <button onclick="toggleApiKeyModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
+        Secara bawaan aplikasi menggunakan <i>environment runtime</i>. Gunakan API Key pribadi dari Google AI Studio untuk akses mandiri.
+      </p>
+      <div>
+        <input type="password" id="customApiKeyInput" placeholder="Masukkan kunci AIzaSy..." class="w-full bg-white border-2 border-slate-200 p-3.5 rounded-xl text-sm font-mono focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-inner">
+      </div>
+      <div class="flex justify-end pt-2">
+        <button onclick="saveApiKey()" class="w-full sm:w-auto bg-slate-900 hover:bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl text-sm shadow-lg hover:shadow-indigo-300 transition-all active:scale-95">
+          Simpan Konfigurasi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
