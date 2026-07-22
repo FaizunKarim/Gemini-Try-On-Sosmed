@@ -46,7 +46,9 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  const googleUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  // Use v1 for experimental image models, v1beta for stable models
+  const apiVersion = model.includes('exp-') ? 'v1' : 'v1beta';
+  const googleUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
 
   try {
     const response = await fetch(googleUrl, {

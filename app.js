@@ -316,7 +316,7 @@ Background setting: ${style}. Photorealistic, commercial fashion campaign qualit
         }
       });
     } else if (img.type === 'url') {
-      // For URL, use fileData with uri
+      // For URL, use fileData with uri (proxy will convert to inlineData)
       parts.push({
         fileData: {
           uri: img.value
