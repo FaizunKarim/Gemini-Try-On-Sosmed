@@ -1,39 +1,33 @@
-// API Key Configuration
-// Priority: 1. User's custom API key (localStorage) > 2. Environment variable
+// config.js
+const DEFAULT_API_KEY = ""; // Biarkan kosong di local/GitHub
 
 function getApiKey() {
-  // Priority 1: Check for user's custom API key in localStorage
+  // 1. Prioritas utama: API Key buatan user di Modal (localStorage)
   const userApiKey = localStorage.getItem('user_gemini_api_key');
-  
   if (userApiKey && userApiKey.trim() !== '') {
     return userApiKey.trim();
   }
-  
-  // Priority 2: Check for environment variable (injected at build time or runtime)
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.GEMINI_API_KEY) {
-    return import.meta.env.GEMINI_API_KEY;
+
+  // 2. Prioritas kedua: API Key otomatis dari Vercel Build Command
+  if (typeof DEFAULT_API_KEY !== 'undefined' && DEFAULT_API_KEY.trim() !== '') {
+    return DEFAULT_API_KEY.trim();
   }
-  
-  // No API key found - return empty string (app will prompt user)
+
   return '';
 }
 
 function hasCustomApiKey() {
   const userApiKey = localStorage.getItem('user_gemini_api_key');
-  return userApiKey && userApiKey.trim() !== '';
+  return Boolean(userApiKey && userApiKey.trim() !== '');
 }
 
 function getApiKeyStatus() {
-  const apiKey = getApiKey();
-  
   if (hasCustomApiKey()) {
-    return "API Key: Custom (Tersimpan)";
+    return "API Key: Custom (User)";
   }
-  
-  if (apiKey) {
-    return "API Key: Default (Environment)";
+  if (getApiKey()) {
+    return "API Key: Default (System)";
   }
-  
   return "API Key: Belum Dikonfigurasi";
 }
 
