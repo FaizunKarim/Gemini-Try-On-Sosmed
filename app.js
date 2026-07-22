@@ -1,4 +1,5 @@
-// Array to hold up to 6 base64 images
+// Array to hold up to 6 images (can be base64 or URL)
+// Format: { type: 'base64' | 'url', value: string }
 const uploadedImages = new Array(6).fill(null);
 
 // Initialize Upload Grid
@@ -19,7 +20,7 @@ function renderUploadGrid() {
         <input type="file" id="fileInput-${i}" accept="image/*" class="hidden" onchange="handleFileSelect(event, ${i})">
         
         ${hasImg ? `
-          <img src="${uploadedImages[i]}" class="w-full h-full object-cover rounded-xl shadow-sm">
+          <img src="${uploadedImages[i].value}" class="w-full h-full object-cover rounded-xl shadow-sm">
           <div class="absolute top-2 right-2 flex gap-1">
             <button onclick="showUrlInput(event, ${i})" class="w-7 h-7 bg-white/90 backdrop-blur-sm hover:bg-teal-500 text-slate-700 hover:text-white rounded-full flex items-center justify-center text-xs shadow-md transition-colors" title="Ganti dengan URL">
               <i class="fa-solid fa-link"></i>
@@ -29,21 +30,51 @@ function renderUploadGrid() {
             </button>
           </div>
         ` : `
-          <div class="flex flex-col items-center text-slate-400 group-hover:text-indigo-500 transition-colors transform group-hover:scale-110 duration-300 w-full">
+          <div class="flex flex-col items-center text-slate-400 group-hover:text-indigo-500 transition-colors w-full" onclick="showSlotOptions(event, ${i})">
             <div class="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center mb-2 border border-slate-100">
               <i class="fa-solid fa-plus text-lg"></i>
             </div>
             <span class="text-[11px] sm:text-xs font-semibold tracking-wide mb-2">Slot ${i + 1}</span>
-            <div class="flex gap-1 w-full px-1">
-              <button onclick="triggerFileInput(${i})" class="flex-1 text-[10px] sm:text-xs bg-white hover:bg-indigo-50 text-indigo-600 px-2 py-1.5 rounded-lg border border-indigo-200 transition-colors font-medium">
-                <i class="fa-solid fa-upload mr-1"></i>File
-              </button>
-              <button onclick="showUrlInput(event, ${i})" class="flex-1 text-[10px] sm:text-xs bg-white hover:bg-teal-50 text-teal-600 px-2 py-1.5 rounded-lg border border-teal-200 transition-colors font-medium">
-                <i class="fa-solid fa-link mr-1"></i>URL
-              </button>
-            </div>
+            <span class="text-[10px] text-slate-400">Klik untuk pilih opsi</span>
           </div>
         `}
+      </div>
+      
+      <!-- Options Menu (shown when slot is clicked) -->
+      <div id="slotOptions-${i}" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-4 sm:p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-3">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2">
+              <i class="fa-solid fa-image text-teal-600"></i>
+              Pilih Sumber Gambar - Slot ${i + 1}
+            </h3>
+            <button onclick="closeSlotOptions(${i})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors">
+              <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+          </div>
+          
+          <button onclick="triggerFileInput(${i}); closeSlotOptions(${i});" class="w-full flex items-center gap-3 p-4 bg-slate-50 hover:bg-indigo-50 border-2 border-slate-200 hover:border-indigo-300 rounded-xl transition-all group">
+            <div class="w-12 h-12 rounded-full bg-indigo-100 group-hover:bg-indigo-200 flex items-center justify-center flex-shrink-0">
+              <i class="fa-solid fa-upload text-indigo-600 text-lg"></i>
+            </div>
+            <div class="text-left flex-1">
+              <div class="font-bold text-slate-900 text-sm">Upload dari File</div>
+              <div class="text-xs text-slate-500">Pilih gambar dari perangkat Anda</div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-slate-400 group-hover:text-indigo-600"></i>
+          </button>
+          
+          <button onclick="showUrlInputFromOptions(event, ${i})" class="w-full flex items-center gap-3 p-4 bg-slate-50 hover:bg-teal-50 border-2 border-slate-200 hover:border-teal-300 rounded-xl transition-all group">
+            <div class="w-12 h-12 rounded-full bg-teal-100 group-hover:bg-teal-200 flex items-center justify-center flex-shrink-0">
+              <i class="fa-solid fa-link text-teal-600 text-lg"></i>
+            </div>
+            <div class="text-left flex-1">
+              <div class="font-bold text-slate-900 text-sm">Dari URL</div>
+              <div class="text-xs text-slate-500">Masukkan link gambar</div>
+            </div>
+            <i class="fa-solid fa-chevron-right text-slate-400 group-hover:text-teal-600"></i>
+          </button>
+        </div>
       </div>
       
       <!-- URL Input Modal (hidden by default) -->
@@ -93,7 +124,7 @@ function handleFileSelect(event, index) {
 
     const reader = new FileReader();
     reader.onload = function(e) {
-      uploadedImages[index] = e.target.result;
+      uploadedImages[index] = { type: 'base64', value: e.target.result };
       renderUploadGrid();
       showToast(`Produk ${index + 1} berhasil diunggah`);
     };
@@ -108,8 +139,28 @@ function removeImage(event, index) {
   showToast(`Produk ${index + 1} dihapus`);
 }
 
+function showSlotOptions(event, index) {
+  event.stopPropagation();
+  const modal = document.getElementById(`slotOptions-${index}`);
+  modal.classList.remove('hidden');
+}
+
+function closeSlotOptions(index) {
+  const modal = document.getElementById(`slotOptions-${index}`);
+  modal.classList.add('hidden');
+}
+
 function showUrlInput(event, index) {
   event.stopPropagation();
+  closeSlotOptions(index);
+  const modal = document.getElementById(`urlInputModal-${index}`);
+  modal.classList.remove('hidden');
+  document.getElementById(`urlInput-${index}`).focus();
+}
+
+function showUrlInputFromOptions(event, index) {
+  event.stopPropagation();
+  closeSlotOptions(index);
   const modal = document.getElementById(`urlInputModal-${index}`);
   modal.classList.remove('hidden');
   document.getElementById(`urlInput-${index}`).focus();
@@ -138,57 +189,11 @@ async function loadImageFromUrl(index) {
     return;
   }
   
-  showToast("Memuat gambar dari URL...", "fa-circle-notch");
-  
-  try {
-    // Convert URL to base64
-    const base64 = await urlToBase64(imageUrl);
-    uploadedImages[index] = base64;
-    renderUploadGrid();
-    closeUrlInput(index);
-    showToast(`Produk ${index + 1} berhasil dimuat dari URL`);
-  } catch (error) {
-    console.error('Error loading image from URL:', error);
-    showToast("Gagal memuat gambar dari URL. Pastikan URL dapat diakses.", "fa-circle-exclamation");
-  }
-}
-
-function urlToBase64(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    
-    img.onload = function() {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      
-      try {
-        const base64 = canvas.toDataURL('image/jpeg', 0.9);
-        resolve(base64);
-      } catch (e) {
-        // If canvas fails due to CORS, try fetching directly
-        fetch(url)
-          .then(response => response.blob())
-          .then(blob => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          })
-          .catch(reject);
-      }
-    };
-    
-    img.onerror = function() {
-      reject(new Error('Failed to load image'));
-    };
-    
-    img.src = url;
-  });
+  // Store URL directly (no conversion needed)
+  uploadedImages[index] = { type: 'url', value: imageUrl };
+  renderUploadGrid();
+  closeUrlInput(index);
+  showToast(`Produk ${index + 1} berhasil dimuat dari URL`);
 }
 
 // API Key functions are now in config.js
@@ -295,7 +300,7 @@ async function generateAllMockups() {
   }
 }
 
-async function generateImageAi(imagesBase64, gender, style) {
+async function generateImageAi(images, gender, style) {
   const apiKey = getApiKey();
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${apiKey}`;
 
@@ -313,15 +318,25 @@ Background setting: ${style}. Photorealistic, commercial fashion campaign qualit
   const parts = [{ text: promptText }];
   
   // Attach up to 3 primary product images to prompt context
-  imagesBase64.slice(0, 3).forEach(b64 => {
-    const mimeType = b64.substring(b64.indexOf(":") + 1, b64.indexOf(";"));
-    const base64Data = b64.split(",")[1];
-    parts.push({
-      inlineData: {
-        mimeType: mimeType || "image/png",
-        data: base64Data
-      }
-    });
+  images.slice(0, 3).forEach(img => {
+    if (img.type === 'base64') {
+      // For base64 (file upload), use inlineData
+      const mimeType = img.value.substring(img.value.indexOf(":") + 1, img.value.indexOf(";"));
+      const base64Data = img.value.split(",")[1];
+      parts.push({
+        inlineData: {
+          mimeType: mimeType || "image/png",
+          data: base64Data
+        }
+      });
+    } else if (img.type === 'url') {
+      // For URL, use fileData with uri
+      parts.push({
+        fileData: {
+          uri: img.value
+        }
+      });
+    }
   });
 
   const payload = {
@@ -342,7 +357,7 @@ Background setting: ${style}. Photorealistic, commercial fashion campaign qualit
   });
 }
 
-async function generateCaptionAi(imagesBase64, gender, style) {
+async function generateCaptionAi(images, gender, style) {
   const apiKey = getApiKey();
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
@@ -367,15 +382,25 @@ Gaya Latar Foto: ${style}`;
   const parts = [{ text: promptText }];
   
   // Kirim gambar ke model teks agar bisa dianalisis (Vision)
-  imagesBase64.slice(0, 3).forEach(b64 => {
-    const mimeType = b64.substring(b64.indexOf(":") + 1, b64.indexOf(";"));
-    const base64Data = b64.split(",")[1];
-    parts.push({
-      inlineData: {
-        mimeType: mimeType || "image/png",
-        data: base64Data
-      }
-    });
+  images.slice(0, 3).forEach(img => {
+    if (img.type === 'base64') {
+      // For base64 (file upload), use inlineData
+      const mimeType = img.value.substring(img.value.indexOf(":") + 1, img.value.indexOf(";"));
+      const base64Data = img.value.split(",")[1];
+      parts.push({
+        inlineData: {
+          mimeType: mimeType || "image/png",
+          data: base64Data
+        }
+      });
+    } else if (img.type === 'url') {
+      // For URL, use fileData with uri
+      parts.push({
+        fileData: {
+          uri: img.value
+        }
+      });
+    }
   });
 
   const payload = {
