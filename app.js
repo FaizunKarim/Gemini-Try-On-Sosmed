@@ -288,7 +288,7 @@ async function generateAllMockups() {
 }
 
 async function generateImageAi(images, gender, style) {
-  const apiUrl = `/api/proxy?model=gemini-2.0-flash-exp-image-generation`;
+  const apiUrl = `/api/proxy?model=gemini-2.5-flash-preview-04-17`;
 
   // Smart Prompt: Instruksi ke Gemini untuk membingkai (framing) berdasarkan jenis pakaian
   const promptText = `A professional 1:1 square aspect ratio fashion lookbook photograph ideal for social media feed posts. An Indonesian ${gender.toLowerCase()} fashion model wearing the clothing item(s) shown in the reference images. 

@@ -46,8 +46,8 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // Use v1 for experimental image models, v1beta for stable models
-  const apiVersion = model.includes('exp-') ? 'v1' : 'v1beta';
+  // Use v1 for experimental/preview models, v1beta for stable models
+  const apiVersion = (model.includes('exp-') || model.includes('preview')) ? 'v1' : 'v1beta';
   const googleUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
 
   try {
