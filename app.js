@@ -122,13 +122,34 @@ function handleFileSelect(event, index) {
       return;
     }
 
+    // Show loading state
+    showUploadLoading(index, true);
+
     const reader = new FileReader();
     reader.onload = function(e) {
       uploadedImages[index] = { type: 'base64', value: e.target.result };
       renderUploadGrid();
       showToast(`Produk ${index + 1} berhasil diunggah`);
     };
+    reader.onerror = function() {
+      showUploadLoading(index, false);
+      showToast("Gagal membaca file. Coba lagi.", "fa-circle-exclamation");
+    };
     reader.readAsDataURL(file);
+  }
+}
+
+function showUploadLoading(index, show) {
+  const slot = document.querySelector(`#fileInput-${index}`).closest('.relative');
+  if (!slot) return;
+  
+  if (show) {
+    slot.innerHTML = `
+      <div class="flex flex-col items-center justify-center aspect-square sm:h-32">
+        <div class="w-10 h-10 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-2"></div>
+        <span class="text-xs text-teal-600 font-semibold">Mengunggah...</span>
+      </div>
+    `;
   }
 }
 
@@ -230,6 +251,8 @@ function updateApiKeyStatus() {
 }
 
 async function generateAllMockups() {
+  console.log('Generate button clicked');
+  
   // Check if API key is configured
   if (!isApiKeyConfigured()) {
     showToast("API Key belum dikonfigurasi. Silakan klik tombol API Key untuk mengkonfigurasi.", "fa-circle-exclamation");
@@ -238,6 +261,8 @@ async function generateAllMockups() {
   }
   
   const activeImages = uploadedImages.filter(x => x !== null);
+  console.log('Active images:', activeImages.length);
+  
   if (activeImages.length === 0) {
     showToast("Silakan unggah minimal 1 gambar produk!", "fa-circle-exclamation");
     return;
@@ -245,6 +270,7 @@ async function generateAllMockups() {
 
   const gender = document.querySelector('input[name="gender"]:checked').value;
   const studioStyle = document.getElementById('studioStyle').value;
+  console.log('Gender:', gender, 'Style:', studioStyle);
 
   // Loading UI State
   setLoadingState(true);
@@ -255,6 +281,8 @@ async function generateAllMockups() {
       generateImageAi(activeImages, gender, studioStyle),
       generateCaptionAi(activeImages, gender, studioStyle)
     ]);
+
+    console.log('Generation complete:', { tryOnImg: !!tryOnImg, captionText: !!captionText });
 
     // Display Try-On Image
     if (tryOnImg) {
