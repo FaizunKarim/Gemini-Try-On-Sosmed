@@ -1,34 +1,11 @@
-// config.js
-const DEFAULT_API_KEY = ""; // Biarkan kosong di local/GitHub
+// API Key Configuration
+// Menggunakan environment variable dari Vercel
+// Di Vercel dashboard, set environment variable: GEMINI_API_KEY
+
+const GEMINI_API_KEY = '${GEMINI_API_KEY}';
 
 function getApiKey() {
-  // 1. Prioritas utama: API Key buatan user di Modal (localStorage)
-  const userApiKey = localStorage.getItem('user_gemini_api_key');
-  if (userApiKey && userApiKey.trim() !== '') {
-    return userApiKey.trim();
-  }
-
-  // 2. Prioritas kedua: API Key otomatis dari Vercel Build Command
-  if (typeof DEFAULT_API_KEY !== 'undefined' && DEFAULT_API_KEY.trim() !== '') {
-    return DEFAULT_API_KEY.trim();
-  }
-
-  return '';
-}
-
-function hasCustomApiKey() {
-  const userApiKey = localStorage.getItem('user_gemini_api_key');
-  return Boolean(userApiKey && userApiKey.trim() !== '');
-}
-
-function getApiKeyStatus() {
-  if (hasCustomApiKey()) {
-    return "API Key: Custom (User)";
-  }
-  if (getApiKey()) {
-    return "API Key: Default (System)";
-  }
-  return "API Key: Belum Dikonfigurasi";
+  return GEMINI_API_KEY || '';
 }
 
 function isApiKeyConfigured() {

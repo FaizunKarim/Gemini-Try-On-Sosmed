@@ -20,11 +20,6 @@
         <img src="katalogin.webp" alt="Katalogin Logo" class="h-10 w-auto object-contain">
       </div>
       
-      <!-- API Key Setting Button -->
-      <button onclick="toggleApiKeyModal()" class="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg transition">
-        <i class="fa-solid fa-key text-amber-500"></i>
-        <span id="apiKeyStatus">API Key (Default/User)</span>
-      </button>
     </div>
   </header>
 
@@ -177,34 +172,6 @@
   <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl text-xs font-medium translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-2">
     <i class="fa-solid fa-circle-info text-teal-400" id="toastIcon"></i>
     <span id="toastMessage">Pesan pemberitahuan...</span>
-  </div>
-
-  <!-- API Key Modal -->
-  <div id="apiKeyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity">
-    <div class="bg-white rounded-3xl p-5 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 space-y-5 transform scale-100 transition-transform">
-      <div class="flex items-center justify-between">
-        <h3 class="font-bold text-slate-900 text-base sm:text-lg flex items-center gap-2">
-          <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center"><i class="fa-solid fa-key text-sm"></i></div> Set Gemini API Key
-        </h3>
-        <button onclick="toggleApiKeyModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors">
-          <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
-      </div>
-      <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
-        Secara bawaan aplikasi ini menggunakan <span class="font-semibold text-slate-700">API Key Default dari Izunkarim</span>. Anda juga dapat menggunakan API Key pribadi dari Google AI Studio untuk akses mandiri.
-      </p>
-      <div>
-        <input type="password" id="customApiKeyInput" placeholder="Masukkan kunci AIzaSy..." class="w-full bg-white border-2 border-slate-200 p-3.5 rounded-xl text-sm font-mono focus:outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 transition-all shadow-inner">
-      </div>
-      <div class="flex flex-col sm:flex-row gap-2 pt-2">
-        <button onclick="useDefaultApiKey()" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-3 rounded-xl text-sm shadow-lg transition-all active:scale-95">
-          <i class="fa-solid fa-check mr-1"></i> Gunakan API Default
-        </button>
-        <button onclick="saveApiKey()" class="flex-1 bg-slate-900 hover:bg-teal-600 text-white font-bold px-4 py-3 rounded-xl text-sm shadow-lg hover:shadow-teal-300 transition-all active:scale-95">
-          <i class="fa-solid fa-save mr-1"></i> Simpan API Kustom
-        </button>
-      </div>
-    </div>
   </div>
 
   <script src="config.js"></script>

@@ -5,7 +5,6 @@ const uploadedImages = new Array(6).fill(null);
 // Initialize Upload Grid
 window.onload = function() {
   renderUploadGrid();
-  updateApiKeyStatus();
 };
 
 function renderUploadGrid() {
@@ -217,54 +216,12 @@ async function loadImageFromUrl(index) {
   showToast(`Produk ${index + 1} berhasil dimuat dari URL`);
 }
 
-// API Key functions are now in config.js
-
-function toggleApiKeyModal() {
-  const modal = document.getElementById('apiKeyModal');
-  modal.classList.toggle('hidden');
-  if (!modal.classList.contains('hidden')) {
-    const currentKey = localStorage.getItem('user_gemini_api_key') || '';
-    document.getElementById('customApiKeyInput').value = currentKey;
-  }
-}
-
-function useDefaultApiKey() {
-  // Remove custom API key from localStorage to use default
-  localStorage.removeItem('user_gemini_api_key');
-  updateApiKeyStatus();
-  toggleApiKeyModal();
-  showToast("Menggunakan API Key default.");
-}
-
-function saveApiKey() {
-  const val = document.getElementById('customApiKeyInput').value.trim();
-  if (val) {
-    localStorage.setItem('user_gemini_api_key', val);
-    showToast("API Key kustom tersimpan!");
-  } else {
-    localStorage.removeItem('user_gemini_api_key');
-    showToast("Menggunakan API Key default.");
-  }
-  updateApiKeyStatus();
-  toggleApiKeyModal();
-}
-
-function updateApiKeyStatus() {
-  const statusEl = document.getElementById('apiKeyStatus');
-  if (localStorage.getItem('user_gemini_api_key')) {
-    statusEl.innerText = "API Key: Custom (Tersimpan)";
-  } else {
-    statusEl.innerText = "API Key: Default";
-  }
-}
-
 async function generateAllMockups() {
   console.log('Generate button clicked');
   
   // Check if API key is configured
   if (!isApiKeyConfigured()) {
-    showToast("API Key belum dikonfigurasi. Silakan klik tombol API Key untuk mengkonfigurasi.", "fa-circle-exclamation");
-    toggleApiKeyModal();
+    showToast("API Key belum dikonfigurasi. Periksa environment variable di Vercel.", "fa-circle-exclamation");
     return;
   }
   
