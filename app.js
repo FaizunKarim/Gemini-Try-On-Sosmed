@@ -288,7 +288,7 @@ async function generateAllMockups() {
 }
 
 async function generateImageAi(images, gender, style) {
-  const apiUrl = `/api/proxy?model=gemini-3.1-flash-image-preview`;
+  const apiUrl = `/api/proxy?model=gemini-2.0-flash-exp-image-generation`;
 
   // Smart Prompt: Instruksi ke Gemini untuk membingkai (framing) berdasarkan jenis pakaian
   const promptText = `A professional 1:1 square aspect ratio fashion lookbook photograph ideal for social media feed posts. An Indonesian ${gender.toLowerCase()} fashion model wearing the clothing item(s) shown in the reference images. 
@@ -344,7 +344,7 @@ Background setting: ${style}. Photorealistic, commercial fashion campaign qualit
 }
 
 async function generateCaptionAi(images, gender, style) {
-  const apiUrl = `/api/proxy?model=gemini-3-flash-preview`;
+  const apiUrl = `/api/proxy?model=gemini-2.0-flash`;
 
   const promptText = `Bertindaklah sebagai Senior Fashion Copywriter & Performance Marketer kelas atas untuk brand lokal Indonesia.
 
@@ -408,6 +408,15 @@ async function fetchWithRetry(url, payload, resultExtractor, maxRetries = 2) {
       });
 
       if (!response.ok) {
+        // Try to read error details from Google
+        let errorDetail = '';
+        try {
+          const errData = await response.json();
+          errorDetail = JSON.stringify(errData);
+        } catch (_) {
+          errorDetail = await response.text();
+        }
+        console.error('API Error Response:', errorDetail);
         throw new Error(`HTTP Error status: ${response.status}`);
       }
 
