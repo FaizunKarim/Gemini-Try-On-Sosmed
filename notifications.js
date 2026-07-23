@@ -1,9 +1,12 @@
 /**
  * Modul Notifikasi (Toast & Alert Modal System)
  * Katalogin AI Try-On
+ * Ditata agar maksimal hanya 1 Toast & 1 Alert Modal yang aktif (tidak menumpuk)
  */
 
 (function () {
+  let activeToastTimeout = null;
+
   // Ensure containers exist on DOM ready
   function initContainers() {
     if (!document.getElementById('toastContainer')) {
@@ -28,15 +31,22 @@
   }
 
   /**
-   * Menampilkan Toast notification melayang di pojok kanan bawah
+   * Menampilkan Toast notification (Maksimal 1 aktif, toast lama otomatis dihapus)
    * @param {string} message - Pesan toast
    * @param {'success'|'error'|'warning'|'info'} type - Tipe notifikasi
-   * @param {string|null} title - Judulopsional
+   * @param {string|null} title - Judul opsional
    * @param {number} duration - Durasi tampil dalam milidetik (default: 3500ms)
    */
   window.showToast = function (message, type = 'info', title = null, duration = 3500) {
     initContainers();
     const container = document.getElementById('toastContainer');
+
+    // Hapus toast lama & batalkan timer sebelumnya agar tidak menumpuk
+    if (activeToastTimeout) {
+      clearTimeout(activeToastTimeout);
+      activeToastTimeout = null;
+    }
+    container.innerHTML = '';
 
     const config = {
       success: {
@@ -75,7 +85,7 @@
         <div class="text-xs font-bold uppercase tracking-wider opacity-80 mb-0.5">${toastTitle}</div>
         <div class="text-xs sm:text-sm font-medium leading-snug">${message}</div>
       </div>
-      <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white transition-colors text-xs p-1">
+      <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white transition-colors text-xs p-1 cursor-pointer">
         <i class="fa-solid fa-xmark"></i>
       </button>
     `;
@@ -89,7 +99,7 @@
     });
 
     // Auto remove after duration
-    setTimeout(() => {
+    activeToastTimeout = setTimeout(() => {
       toastEl.classList.remove('translate-y-0', 'opacity-100', 'scale-100');
       toastEl.classList.add('translate-y-4', 'opacity-0', 'scale-95');
       setTimeout(() => {
@@ -99,7 +109,7 @@
   };
 
   /**
-   * Menampilkan Alert Modal Interaktif
+   * Menampilkan Alert Modal Interaktif (Maksimal 1 aktif)
    * @param {Object} options
    * @param {string} options.title - Judul Alert Modal
    * @param {string} options.message - Deskripsi pesan
@@ -120,6 +130,9 @@
   }) {
     initContainers();
     const container = document.getElementById('alertModalContainer');
+
+    // Kosongkan modal yang sedang berjalan jika ada
+    container.innerHTML = '';
 
     const icons = {
       info: 'fa-circle-info text-teal-600 bg-teal-100',
