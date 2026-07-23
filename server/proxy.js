@@ -22,10 +22,21 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: 'CF_ACCOUNT_ID or CF_API_TOKEN not configured on server' });
     }
 
-    const { prompt, image_b64, strength = 0.65, guidance = 7, num_steps = 8 } = req.body || {};
+    let { prompt, image_b64, image_url, strength = 0.65, guidance = 7, num_steps = 8 } = req.body || {};
+
+    // Jika image_url diberikan, konversi ke base64 di server (bebas CORS)
+    if (!image_b64 && image_url) {
+      try {
+        const inlineData = await urlToInlineData(image_url);
+        image_b64 = inlineData.data;
+      } catch (err) {
+        console.error(`Gagal mengunduh gambar dari URL di server (${image_url}):`, err.message);
+        return res.status(400).json({ error: `Gagal mengambil gambar dari URL: ${err.message}` });
+      }
+    }
 
     if (!prompt || !image_b64) {
-      return res.status(400).json({ error: 'Parameters "prompt" and "image_b64" are required' });
+      return res.status(400).json({ error: 'Parameters "prompt" and ("image_b64" or "image_url") are required' });
     }
 
     // Stripping header data:image/...;base64, jika ada

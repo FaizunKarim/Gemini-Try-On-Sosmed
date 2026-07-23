@@ -391,40 +391,24 @@ async function generateAllMockups() {
   }
 }
 
-async function getImageRawBase64(image) {
-  if (image.type === 'base64') {
-    const val = image.value;
-    return val.includes(',') ? val.split(',')[1] : val;
-  } else if (image.type === 'url') {
-    const response = await fetch(image.value);
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result;
-        resolve(result.includes(',') ? result.split(',')[1] : result);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  }
-  return '';
-}
-
 async function generateImageAi(image, gender, style) {
   const apiUrl = `/api/proxy?action=cloudflare-image`;
 
   const promptText = `A professional fashion lookbook photograph of an Indonesian ${gender.toLowerCase()} fashion model wearing the clothing item shown in the reference image. Background setting: ${style}. Photorealistic, commercial fashion campaign quality, sharp focus on fabric details, realistic lighting.`;
 
-  const base64Data = await getImageRawBase64(image);
-
   const payload = {
     prompt: promptText,
-    image_b64: base64Data,
     strength: 0.65,
     guidance: 7,
     num_steps: 8
   };
+
+  if (image.type === 'base64') {
+    const val = image.value;
+    payload.image_b64 = val.includes(',') ? val.split(',')[1] : val;
+  } else if (image.type === 'url') {
+    payload.image_url = image.value;
+  }
 
   return await fetchWithRetry(apiUrl, payload, (result) => {
     if (result && result.resultImage) {
@@ -437,7 +421,7 @@ async function generateImageAi(image, gender, style) {
 }
 
 async function generateCaptionAi(image, gender, style) {
-  const apiUrl = `/api/proxy?model=gemini-2.0-flash`;
+  const apiUrl = `/api/proxy?model=gemini-1.5-flash`;
 
   const promptText = `Bertindaklah sebagai Senior Fashion Copywriter & Performance Marketer kelas atas untuk brand lokal Indonesia.
 
