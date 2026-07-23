@@ -287,23 +287,31 @@ async function generateAllMockups() {
   const studioStyle = document.getElementById('studioStyle').value;
   console.log('Gender:', gender, 'Style:', studioStyle);
 
-  showToast("Memulai proses pembuatan mockup & caption AI...", "info", "Memproses AI");
+  showToast("Memproses Gambar & Caption AI secara bersamaan...", "info", "Memproses AI");
   setLoadingState(true);
 
   try {
-    console.log('Generating image...');
-    const tryOnImg = await generateImageAi(uploadedImage, gender, studioStyle);
-    
-    showToast("Mockup gambar AI berhasil dibuat! Menyusun caption...", "info", "Langkah 1 Selesai");
-    await new Promise(r => setTimeout(r, 1000)); // Jedakan sebentar sebelum memanggil Gemini Caption AI
-    
-    console.log('Generating caption...');
-    const captionText = await generateCaptionAi(uploadedImage, gender, studioStyle);
+    // Jalankan Image Gen (Cloudflare) dan Caption Gen (Gemini) secara paralel
+    const [imageResult, captionResult] = await Promise.allSettled([
+      generateImageAi(uploadedImage, gender, studioStyle),
+      generateCaptionAi(uploadedImage, gender, studioStyle)
+    ]);
 
-    console.log('Generation complete:', { tryOnImg: !!tryOnImg, captionText: !!captionText });
+    const tryOnImg = imageResult.status === 'fulfilled' ? imageResult.value : null;
+    const captionText = captionResult.status === 'fulfilled' ? captionResult.value : null;
 
-    // Display Try-On Image & setup download link
+    console.log('Parallel Generation Complete:', {
+      imageStatus: imageResult.status,
+      tryOnImg: !!tryOnImg,
+      captionStatus: captionResult.status,
+      captionText: !!captionText
+    });
+
+    let successCount = 0;
+
+    // Display Try-On Image jika berhasil
     if (tryOnImg) {
+      successCount++;
       document.getElementById('tryOnPlaceholder').classList.add('hidden');
       const imgEl = document.getElementById('imgTryOn');
       imgEl.src = tryOnImg;
@@ -313,10 +321,21 @@ async function generateAllMockups() {
       if (downloadBtn) downloadBtn.href = tryOnImg;
       
       document.getElementById('overlayTryOn').classList.remove('hidden');
+    } else {
+      const placeholder = document.getElementById('tryOnPlaceholder');
+      placeholder.innerHTML = `
+        <div class="w-16 h-16 rounded-2xl bg-rose-50 flex items-center justify-center mb-3 text-rose-500">
+          <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+        </div>
+        <span class="text-xs font-semibold text-rose-500">Gagal membuat gambar AI.</span>
+        <span class="text-[10px] text-slate-400 mt-1">Coba periksa token Cloudflare atau coba lagi.</span>
+      `;
+      placeholder.classList.remove('hidden');
     }
 
-    // Display & Enable Caption Textarea
+    // Display & Enable Caption Textarea jika berhasil (meski gambar gagal)
     if (captionText) {
+      successCount++;
       const capContainer = document.getElementById('captionContainer');
       const capText = document.getElementById('captionText');
       const capBtn = document.getElementById('btnCopyCaption');
@@ -338,20 +357,34 @@ async function generateAllMockups() {
       badge.innerHTML = `<i class="fa-solid fa-lock-open text-[9px]"></i> Siap Diedit`;
 
       instruction.innerText = "Silakan edit teks di bawah ini jika ingin menyesuaikan harga, promo, atau pesan khusus:";
+    } else {
+      const capText = document.getElementById('captionText');
+      if (capText) capText.value = "Gagal membuat caption AI. Silakan coba lagi nanti.";
     }
 
-    if (window.showAlertModal) {
-      showAlertModal({
-        title: 'Mockup & Caption Berhasil Dibuat!',
-        message: 'Hasil tampilan model try-on dan caption copywriting promosi AI siap digunakan.',
-        type: 'success',
-        confirmText: 'Lihat Hasil'
-      });
+    // Feedback Notifikasi Hasil
+    if (successCount === 2) {
+      if (window.showAlertModal) {
+        showAlertModal({
+          title: 'Mockup & Caption Berhasil Dibuat!',
+          message: 'Hasil tampilan model try-on dan caption copywriting promosi AI telah selesai diproses secara bersamaan.',
+          type: 'success',
+          confirmText: 'Lihat Hasil'
+        });
+      }
+      showToast("Gambar & Caption berhasil dibuat!", "success", "Selesai ✨");
+    } else if (successCount === 1) {
+      if (tryOnImg) {
+        showToast("Gambar berhasil dibuat, namun caption gagal diproses.", "warning", "Parsial Selesai");
+      } else {
+        showToast("Caption berhasil dibuat! Namun gambar gagal diproses.", "warning", "Parsial Selesai");
+      }
+    } else {
+      showToast("Gagal memproses Gambar maupun Caption AI. Silakan coba lagi.", "error", "Gagal Proses AI");
     }
-    showToast("Mockup & Caption berhasil dibuat oleh AI!", "success", "Selesai ✨");
 
   } catch (err) {
-    console.error("Generate Error:", err);
+    console.error("Parallel Generate Error:", err);
     showToast("Terjadi kesalahan saat memproses AI. Silakan coba lagi.", "error", "Gagal Proses AI");
   } finally {
     setLoadingState(false);
