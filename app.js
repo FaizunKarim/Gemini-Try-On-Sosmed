@@ -394,13 +394,29 @@ async function generateAllMockups() {
 async function generateImageAi(image, gender, style) {
   const apiUrl = `/api/proxy?action=cloudflare-image`;
 
-  const promptText = `A professional fashion lookbook photograph of an Indonesian ${gender.toLowerCase()} fashion model wearing the clothing item shown in the reference image. Background setting: ${style}. Photorealistic, commercial fashion campaign quality, sharp focus on fabric details, realistic lighting.`;
+  const promptText = `A high-end 1:1 commercial fashion lookbook try-on photograph of an Indonesian ${gender.toLowerCase()} fashion model wearing the EXACT product shown in the input image.
+
+STRICT ITEM CONSERVATION:
+- Do NOT modify, alter, recolor, reshape, or redesign the original product in the input image. 
+- Keep 100% exact original colors, shape, proportions, brand details, texture, and visual appearance of the item intact.
+
+DYNAMIC ADAPTIVE TRY-ON FRAMING & POSE:
+- IF FOOTWEAR / SHOES: Shoot a close-up macro fashion shot focusing strictly on the feet and lower legs wearing the shoes. The model can pose sitting cross-legged, sitting relaxed on a step, or taking a casual stride. Focus sharply on the shoes, ankles, and feet.
+- IF TOPS / SHIRTS / JACKETS: Shoot a half-body torso portrait focusing strictly on the shirt/garment from neck to waist. Exclude the model's face / crop out the face to focus purely on the clothing fit.
+- IF EYEWEAR / GLASSES / HATS: Shoot an intimate close-up headshot portrait focusing strictly on the head, face, and eyewear/glasses.
+- IF PANTS / BOTTOMS: Shoot a lower-body portrait focusing from waist down to ankles.
+- IF FULL OUTFIT / DRESS: Shoot a full-body or 3/4 body fashion pose fitting comfortably in a square 1:1 frame.
+
+STYLE & ENVIRONMENT:
+- Background setting: ${style}.
+- Model gender: Indonesian ${gender}.
+- Professional studio lighting, photorealistic, 8k resolution, crisp product details, sharp focus, aesthetic composition.`;
 
   const payload = {
     prompt: promptText,
-    strength: 0.65,
-    guidance: 7,
-    num_steps: 8
+    strength: 0.38,
+    guidance: 7.5,
+    num_steps: 12
   };
 
   if (image.type === 'base64') {
@@ -421,7 +437,7 @@ async function generateImageAi(image, gender, style) {
 }
 
 async function generateCaptionAi(image, gender, style) {
-  const apiUrl = `/api/proxy?model=gemini-1.5-flash`;
+  const apiUrl = `/api/proxy?model=gemini-1.5-flash-latest`;
 
   const promptText = `Bertindaklah sebagai Senior Fashion Copywriter & Performance Marketer kelas atas untuk brand lokal Indonesia.
 

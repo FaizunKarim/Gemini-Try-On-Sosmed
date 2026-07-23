@@ -122,9 +122,14 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // Use v1 for experimental/preview models, v1beta for stable models
-  const apiVersion = (model.includes('exp-') || model.includes('preview')) ? 'v1' : 'v1beta';
-  const googleUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${apiKey}`;
+  // Resolution nama model resmi di Google AI Studio v1beta
+  let targetModel = model;
+  if (targetModel === 'gemini-1.5-flash') {
+    targetModel = 'gemini-1.5-flash-latest';
+  }
+
+  const apiVersion = (targetModel.includes('exp-') || targetModel.includes('preview')) ? 'v1' : 'v1beta';
+  const googleUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${targetModel}:generateContent?key=${apiKey}`;
 
   try {
     const response = await fetch(googleUrl, {
