@@ -61,15 +61,7 @@ function renderUploadGrid() {
             <i class="fa-solid fa-cloud-arrow-up text-2xl text-teal-600"></i>
           </div>
           <span class="text-sm font-bold text-slate-700 group-hover:text-teal-700 mb-1">Unggah Gambar Produk</span>
-          <span class="text-xs text-slate-400 max-w-xs mb-3">Klik di sini untuk memilih file dari komputer atau memasukkan URL gambar</span>
-          <div class="flex items-center gap-2">
-            <span class="text-[11px] font-semibold text-teal-600 bg-teal-50 border border-teal-200 px-3 py-1 rounded-lg">
-              <i class="fa-solid fa-folder-open mr-1"></i> File Lokal
-            </span>
-            <span class="text-[11px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1 rounded-lg">
-              <i class="fa-solid fa-link mr-1"></i> Link URL
-            </span>
-          </div>
+          <span class="text-xs text-slate-400 max-w-xs">Klik di sini untuk memilih file dari perangkat atau link URL</span>
         </div>
       `}
     </div>
@@ -303,7 +295,7 @@ async function generateAllMockups() {
     const tryOnImg = await generateImageAi(uploadedImage, gender, studioStyle);
     
     showToast("Mockup gambar AI berhasil dibuat! Menyusun caption...", "info", "Langkah 1 Selesai");
-    await new Promise(r => setTimeout(r, 12000)); // Delay to respect rate limits
+    await new Promise(r => setTimeout(r, 1000)); // Jedakan sebentar sebelum memanggil Gemini Caption AI
     
     console.log('Generating caption...');
     const captionText = await generateCaptionAi(uploadedImage, gender, studioStyle);
@@ -366,49 +358,46 @@ async function generateAllMockups() {
   }
 }
 
-async function generateImageAi(image, gender, style) {
-  const apiUrl = `/api/proxy?model=gemini-3.1-flash-image`;
-
-  const promptText = `A professional 1:1 square aspect ratio fashion lookbook photograph ideal for social media feed posts. An Indonesian ${gender.toLowerCase()} fashion model wearing the clothing item shown in the reference image. 
-CRITICAL FRAMING INSTRUCTION: Analyze the provided clothing item and frame the shot accordingly:
-- If ONLY shoes/footwear are provided, shoot a CLOSE-UP focusing strictly on the feet and lower legs.
-- If ONLY a top/shirt/necklace is provided, shoot a HALF-BODY torso portrait.
-- If ONLY pants/skirts/shorts are provided (without tops), shoot the LOWER BODY.
-- If a full outfit (top + bottom, or a full dress) is provided, shoot a FULL-BODY or 3/4 body shot fitting comfortably within a 1:1 square frame.
-
-Background setting: ${style}. Photorealistic, commercial fashion campaign quality, sharp focus on fabric details, realistic lighting.`;
-
-  const parts = [{ text: promptText }];
-  
+async function getImageRawBase64(image) {
   if (image.type === 'base64') {
-    const mimeType = image.value.substring(image.value.indexOf(":") + 1, image.value.indexOf(";"));
-    const base64Data = image.value.split(",")[1];
-    parts.push({
-      inlineData: {
-        mimeType: mimeType || "image/png",
-        data: base64Data
-      }
-    });
+    const val = image.value;
+    return val.includes(',') ? val.split(',')[1] : val;
   } else if (image.type === 'url') {
-    parts.push({
-      fileData: {
-        uri: image.value
-      }
+    const response = await fetch(image.value);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result;
+        resolve(result.includes(',') ? result.split(',')[1] : result);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
     });
   }
+  return '';
+}
+
+async function generateImageAi(image, gender, style) {
+  const apiUrl = `/api/proxy?action=cloudflare-image`;
+
+  const promptText = `A professional fashion lookbook photograph of an Indonesian ${gender.toLowerCase()} fashion model wearing the clothing item shown in the reference image. Background setting: ${style}. Photorealistic, commercial fashion campaign quality, sharp focus on fabric details, realistic lighting.`;
+
+  const base64Data = await getImageRawBase64(image);
 
   const payload = {
-    contents: [{ role: "user", parts: parts }],
-    generationConfig: {
-      responseModalities: ["IMAGE"],
-      imageConfig: { aspectRatio: "1:1" }
-    }
+    prompt: promptText,
+    image_b64: base64Data,
+    strength: 0.65,
+    guidance: 7,
+    num_steps: 8
   };
 
   return await fetchWithRetry(apiUrl, payload, (result) => {
-    const part = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-    if (part && part.inlineData) {
-      return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+    if (result && result.resultImage) {
+      return result.resultImage;
+    } else if (result && result.result && result.result.image) {
+      return `data:image/png;base64,${result.result.image}`;
     }
     return null;
   });
