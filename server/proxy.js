@@ -137,14 +137,9 @@ module.exports = async function handler(req, res) {
     // Cloudflare Llama Vision REST API: image dikirim sebagai array of uint8 (integer array),
     // prompt dikirim sebagai field "prompt"
     const visionBody = {
-      messages: [
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
+      prompt: prompt,
       image: imageBytes,
-      max_tokens: 200,
+      max_tokens: 500,
       temperature: 0.1,
       top_p: 0.9
     };
