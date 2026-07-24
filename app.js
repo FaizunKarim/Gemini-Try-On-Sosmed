@@ -401,19 +401,236 @@ async function generateAllMockups() {
 async function generateImageAi(image, gender, style) {
   const apiUrl = `/api/proxy?action=cloudflare-image`;
 
-  const promptText = `You are a professional fashion product photography AI.
+  const promptText = `You are a professional luxury fashion photographer and commercial product stylist.
 
-The uploaded image is the product reference.
+The uploaded image is the ONLY product reference.
 
-Generate a photorealistic lifestyle fashion image featuring an AI-generated model naturally wearing or using the exact product from the reference image.
+Your task is to generate a photorealistic commercial fashion image featuring an AI-generated human model naturally wearing, holding, or using the exact product from the reference image.
 
-Preserve the product identity as accurately as possible including colors, logo, texture, stitching, material, proportions, shape and design.
+The product is the hero of the image.
 
-Do not redesign the product.
+========================================
+PRODUCT PRESERVATION (HIGHEST PRIORITY)
+========================================
 
-Create a premium commercial fashion photoshoot with professional lighting, realistic human model, luxury aesthetic and close-up product visibility.
+Preserve the uploaded product as accurately as possible.
 
-Model gender: ${gender}. Background: ${style}.`;
+Do NOT change:
+- Product type
+- Shape
+- Size
+- Colors
+- Logo
+- Branding
+- Graphics
+- Print
+- Pattern
+- Fabric
+- Stitching
+- Materials
+- Accessories attached to the product
+- Surface texture
+- Design details
+
+Never redesign or replace the product.
+
+The product must remain visually identical to the reference image.
+
+========================================
+COMPOSITION RULES
+========================================
+
+Automatically choose the camera framing based on the product category.
+
+If the product is:
+
+• T-Shirt
+• Hoodie
+• Jacket
+• Sweater
+• Polo
+• Jersey
+• Blazer
+• Shirt
+• Coat
+
+→ Generate an upper-body or half-body fashion portrait.
+
+The clothing must be fully visible and become the primary focus.
+
+The model's face may be visible but should never dominate the composition.
+
+----------------------------------------
+
+If the product is:
+
+• Pants
+• Jeans
+• Shorts
+• Skirt
+• Leggings
+
+→ Generate a lower-body fashion shot.
+
+Focus on the waist, hips, and legs.
+
+The pants must be completely visible.
+
+----------------------------------------
+
+If the product is:
+
+• Shoes
+• Sneakers
+• Sandals
+• Boots
+• High Heels
+
+→ Generate a close-up lifestyle shot focusing on the feet.
+
+The footwear must occupy most of the frame.
+
+Natural standing or walking poses.
+
+----------------------------------------
+
+If the product is:
+
+• Hat
+• Cap
+• Beanie
+• Helmet
+
+→ Generate a portrait focusing on the head and upper body.
+
+The headwear must be the primary subject.
+
+----------------------------------------
+
+If the product is:
+
+• Sunglasses
+• Glasses
+
+→ Generate a portrait emphasizing the face and eyewear.
+
+The glasses must remain clearly visible.
+
+----------------------------------------
+
+If the product is:
+
+• Earrings
+• Necklace
+• Bracelet
+• Watch
+• Ring
+
+→ Generate a close-up lifestyle portrait emphasizing the accessory.
+
+Keep the accessory as the visual focus.
+
+----------------------------------------
+
+If the product is:
+
+• Backpack
+
+→ Generate a lifestyle shot showing the model naturally wearing the backpack.
+
+Prefer rear three-quarter angle or side angle so the backpack is clearly visible.
+
+----------------------------------------
+
+If the product is:
+
+• Handbag
+• Shoulder Bag
+• Tote Bag
+
+→ Generate a fashion pose naturally holding or wearing the bag.
+
+Focus on the arm, shoulder, and bag.
+
+----------------------------------------
+
+If the product is:
+
+• Sling Bag
+• Waist Bag
+• Belt Bag
+
+→ Generate a waist-up or full-body shot emphasizing the bag placement.
+
+----------------------------------------
+
+If the product category cannot be determined,
+
+choose the camera composition that best highlights the uploaded product while keeping it as the primary focus.
+
+========================================
+MODEL
+========================================
+
+Generate a realistic human model.
+
+Natural body proportions.
+
+Natural pose.
+
+Relaxed expression.
+
+Professional fashion posture.
+
+Modern commercial fashion photography.
+
+Model gender: ${gender}.
+
+========================================
+PHOTOGRAPHY
+========================================
+
+Luxury fashion campaign.
+
+Professional studio lighting.
+
+Soft shadows.
+
+Premium e-commerce quality.
+
+Photorealistic.
+
+High detail.
+
+Natural skin texture.
+
+Natural fabric folds.
+
+Sharp focus.
+
+Clean composition.
+
+Luxury aesthetic.
+
+Magazine-quality fashion photography.
+
+Background setting: ${style}.
+
+========================================
+IMPORTANT
+========================================
+
+The generated person is only a model.
+
+The uploaded product is the main subject.
+
+Never crop important parts of the product.
+
+Always ensure the entire product remains clearly visible.
+
+The viewer should immediately recognize the uploaded product as the focus of the image.
+
+Output a single ultra-realistic commercial fashion image.`;
 
   const payload = { prompt: promptText };
 
