@@ -287,115 +287,120 @@ async function generateAllMockups() {
   const studioStyle = document.getElementById('studioStyle').value;
   console.log('Gender:', gender, 'Style:', studioStyle);
 
-  showToast("Memulai Generate Gambar", "info", "Memproses AI");
+  showToast("Memproses gambar & caption AI...", "info", "Memproses");
   setLoadingState(true);
 
   let tryOnImg = null;
   let captionText = null;
 
-  //  STEP 1: Image Generation (Cloudflare Flux 2 Klein 4B)
-  try {
-    showToast("Step 1/3: Membuat gambar fashion AI (Flux)...", "info", "Generating Image");
-    tryOnImg = await generateImageAi(uploadedImage, gender, studioStyle);
-
-    if (tryOnImg) {
-      document.getElementById('tryOnPlaceholder').classList.add('hidden');
-      const imgEl = document.getElementById('imgTryOn');
-      imgEl.src = tryOnImg;
-      imgEl.classList.remove('hidden');
-      const downloadBtn = document.getElementById('btnDownloadTryOn');
-      if (downloadBtn) downloadBtn.href = tryOnImg;
-      document.getElementById('overlayTryOn').classList.remove('hidden');
-      showToast("Gambar berhasil dibuat!", "success", "Step 1 ");
-    } else {
-      throw new Error('Flux returned empty image');
-    }
-  } catch (imgErr) {
-    console.error('Image Gen Failed:', imgErr);
-    const imgErrMsg = extractErrorMessage(imgErr);
-    const placeholder = document.getElementById('tryOnPlaceholder');
-    placeholder.innerHTML = `
-      <div class="w-16 h-16 rounded-2xl bg-rose-50 flex items-center justify-center mb-3 text-rose-500">
-        <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
-      </div>
-      <span class="text-xs font-semibold text-rose-500">Gagal membuat gambar AI (Flux).</span>
-      <span class="text-[10px] text-slate-400 mt-1">${imgErrMsg}</span>
-    `;
-    placeholder.classList.remove('hidden');
-    showToast(`Cloudflare Flux gagal: ${imgErrMsg}`, "error", "❌ Flux Image Gen", 5000);
-  }
-
-  //  STEP 2: Image Analysis (Cloudflare Llama 3.2 Vision)
-  // Analisis gambar INPUT dari user (bukan generated image) agar lebih akurat
-  let productJson = null;
-  const imageForAnalysis = uploadedImage
-    ? (uploadedImage.type === 'base64' ? uploadedImage.value : uploadedImage.value)
-    : null;
-
-  if (imageForAnalysis) {
+  // Task 1: Generate Image (Paralel)
+  const imageTask = (async () => {
     try {
-      showToast("Step 2/3: Menganalisis produk (Llama Vision)...", "info", "Analyzing");
-      productJson = await analyzeImageWithVision(imageForAnalysis, gender, studioStyle);
-      productJson = enrichProductJson(productJson);
-      console.log('Vision Analysis Result:', productJson);
-      showToast("Analisis visual selesai!", "info", "Step 2 ✓");
-    } catch (visionErr) {
-      console.error('Vision Analysis Failed:', visionErr);
-      const visionErrMsg = extractErrorMessage(visionErr);
-      showToast(`Llama Vision gagal: ${visionErrMsg}. Caption tetap diproses...`, "warning", " Llama Vision", 5000);
+      showToast("Membuat gambar fashion...", "info", "Gambar AI");
+      const imgResult = await generateImageAi(uploadedImage, gender, studioStyle);
+      if (imgResult) {
+        tryOnImg = imgResult;
+        document.getElementById('tryOnPlaceholder').classList.add('hidden');
+        const imgEl = document.getElementById('imgTryOn');
+        imgEl.src = tryOnImg;
+        imgEl.classList.remove('hidden');
+        const downloadBtn = document.getElementById('btnDownloadTryOn');
+        if (downloadBtn) downloadBtn.href = tryOnImg;
+        document.getElementById('overlayTryOn').classList.remove('hidden');
+        showToast("Gambar berhasil dibuat!", "success", "Gambar AI");
+      } else {
+        throw new Error('Server mengembalikan gambar kosong');
+      }
+    } catch (imgErr) {
+      console.error('Image Gen Failed:', imgErr);
+      const imgErrMsg = extractErrorMessage(imgErr);
+      const placeholder = document.getElementById('tryOnPlaceholder');
+      placeholder.innerHTML = `
+        <div class="w-16 h-16 rounded-2xl bg-rose-50 flex items-center justify-center mb-3 text-rose-500">
+          <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+        </div>
+        <span class="text-xs font-semibold text-rose-500">Gagal membuat gambar AI.</span>
+        <span class="text-[10px] text-slate-400 mt-1">${imgErrMsg}</span>
+      `;
+      placeholder.classList.remove('hidden');
+      showToast(`Gagal membuat gambar: ${imgErrMsg}`, "error", "Gagal Gambar", 5000);
     }
-  }
+  })();
 
-  // STEP 3: Caption Generation (Groq)
-  try {
-    showToast("Step 3/3: Menyusun caption Instagram (Groq)...", "info", "Generating Caption");
-    captionText = await generateCaptionAi(productJson, gender, studioStyle);
+  // Task 2: Analyze Product & Generate Caption (Paralel)
+  const captionTask = (async () => {
+    let productJson = null;
+    const imageForAnalysis = uploadedImage
+      ? (uploadedImage.type === 'base64' ? uploadedImage.value : uploadedImage.value)
+      : null;
 
-    if (captionText) {
-      const capContainer = document.getElementById('captionContainer');
+    if (imageForAnalysis) {
+      try {
+        showToast("Menganalisis produk...", "info", "Analisis Produk");
+        productJson = await analyzeImageWithVision(imageForAnalysis, gender, studioStyle);
+        productJson = enrichProductJson(productJson);
+        console.log('Vision Analysis Result:', productJson);
+      } catch (visionErr) {
+        console.error('Vision Analysis Failed:', visionErr);
+        const visionErrMsg = extractErrorMessage(visionErr);
+        showToast(`Analisis visual terkendala, menyusun caption...`, "warning", "Analisis Produk", 4000);
+      }
+    }
+
+    try {
+      showToast("Menyusun caption Instagram...", "info", "Caption AI");
+      captionText = await generateCaptionAi(productJson, gender, studioStyle);
+
+      if (captionText) {
+        const capContainer = document.getElementById('captionContainer');
+        const capText = document.getElementById('captionText');
+        const capBtn = document.getElementById('btnCopyCaption');
+        const badge = document.getElementById('captionStatusBadge');
+        const instruction = document.getElementById('captionInstruction');
+
+        capContainer.classList.remove('opacity-70');
+        capText.disabled = false;
+        capText.value = captionText;
+        capText.className = "w-full bg-white p-4 rounded-xl border border-teal-100/80 shadow-inner text-xs sm:text-sm text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-teal-500 leading-relaxed resize-y";
+        capBtn.disabled = false;
+        capBtn.className = "text-xs font-bold text-teal-600 bg-white hover:bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer";
+        badge.className = "text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1";
+        badge.innerHTML = `<i class="fa-solid fa-lock-open text-[9px]"></i> Siap Diedit`;
+        instruction.innerText = "Silakan edit teks di bawah ini jika ingin menyesuaikan harga, promo, atau pesan khusus:";
+        showToast("Caption berhasil dibuat!", "success", "Caption AI");
+      } else {
+        throw new Error('Server mengembalikan caption kosong');
+      }
+    } catch (capErr) {
+      console.error('Caption Gen Failed:', capErr);
+      const capErrMsg = extractErrorMessage(capErr);
       const capText = document.getElementById('captionText');
-      const capBtn = document.getElementById('btnCopyCaption');
-      const badge = document.getElementById('captionStatusBadge');
-      const instruction = document.getElementById('captionInstruction');
-
-      capContainer.classList.remove('opacity-70');
-      capText.disabled = false;
-      capText.value = captionText;
-      capText.className = "w-full bg-white p-4 rounded-xl border border-teal-100/80 shadow-inner text-xs sm:text-sm text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-teal-500 leading-relaxed resize-y";
-      capBtn.disabled = false;
-      capBtn.className = "text-xs font-bold text-teal-600 bg-white hover:bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer";
-      badge.className = "text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1";
-      badge.innerHTML = `<i class="fa-solid fa-lock-open text-[9px]"></i> Siap Diedit`;
-      instruction.innerText = "Silakan edit teks di bawah ini jika ingin menyesuaikan harga, promo, atau pesan khusus:";
-    } else {
-      throw new Error('Groq returned empty caption');
+      if (capText) capText.value = `Gagal membuat caption AI.\n\nDetail: ${capErrMsg}`;
+      showToast(`Gagal membuat caption: ${capErrMsg}`, "error", "Gagal Caption", 5000);
     }
-  } catch (capErr) {
-    console.error('Caption Gen Failed:', capErr);
-    const capErrMsg = extractErrorMessage(capErr);
-    const capText = document.getElementById('captionText');
-    if (capText) capText.value = `Gagal membuat caption AI.\n\nDetail: ${capErrMsg}`;
-    showToast(`Groq gagal: ${capErrMsg}`, "error", " Groq Caption", 6000);
-  }
+  })();
 
-  //  FINAL: Feedback 
+  // Jalankan pembuatan gambar & caption secara BERSAMAAN (PARALEL)
+  await Promise.allSettled([imageTask, captionTask]);
+
+  // FINAL Feedback
   const bothDone = tryOnImg && captionText;
   const partialDone = tryOnImg || captionText;
 
   if (bothDone) {
     if (window.showAlertModal) {
       showAlertModal({
-        title: 'Pipeline Selesai! ',
+        title: 'Proses Selesai!',
         message: 'Gambar fashion AI dan caption Instagram promosi telah berhasil dibuat.',
         type: 'success',
         confirmText: 'Lihat Hasil'
       });
     }
-    showToast("Gambar & Caption berhasil dibuat!", "success", "Selesai ");
+    showToast("Gambar & Caption berhasil dibuat!", "success", "Selesai");
   } else if (partialDone) {
-    showToast(tryOnImg ? "Gambar OK, caption gagal." : "Caption OK, gambar gagal.", "warning", "Parsial Selesai");
+    showToast(tryOnImg ? "Gambar berhasil, caption terkendala." : "Caption berhasil, gambar terkendala.", "warning", "Parsial Selesai");
   } else {
-    showToast("Semua proses AI gagal. Coba lagi.", "error", "Pipeline Gagal");
+    showToast("Semua proses AI terkendala. Silakan coba lagi.", "error", "Gagal");
   }
 
   setLoadingState(false);
