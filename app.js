@@ -342,9 +342,9 @@ async function generateAllMockups() {
     }
   }
 
-  // ── STEP 3: Caption Generation (Google Gemini) ────────────────────────────
+  // ── STEP 3: Caption Generation (Groq) ────────────────────────────
   try {
-    showToast("Step 3/3: Menyusun caption Instagram (Gemini)...", "info", "Generating Caption");
+    showToast("Step 3/3: Menyusun caption Instagram (Groq)...", "info", "Generating Caption");
     captionText = await generateCaptionAi(productJson, gender, studioStyle);
 
     if (captionText) {
@@ -364,14 +364,14 @@ async function generateAllMockups() {
       badge.innerHTML = `<i class="fa-solid fa-lock-open text-[9px]"></i> Siap Diedit`;
       instruction.innerText = "Silakan edit teks di bawah ini jika ingin menyesuaikan harga, promo, atau pesan khusus:";
     } else {
-      throw new Error('Gemini returned empty caption');
+      throw new Error('Groq returned empty caption');
     }
   } catch (capErr) {
     console.error('Caption Gen Failed:', capErr);
     const capErrMsg = extractErrorMessage(capErr);
     const capText = document.getElementById('captionText');
     if (capText) capText.value = `Gagal membuat caption AI.\n\nDetail: ${capErrMsg}`;
-    showToast(`Gemini gagal: ${capErrMsg}`, "error", "❌ Gemini Caption", 6000);
+    showToast(`Groq gagal: ${capErrMsg}`, "error", "❌ Groq Caption", 6000);
   }
 
   // ── FINAL: Feedback ────────────────────────────────────────────────────────
@@ -776,9 +776,9 @@ Rules:
   return result;
 }
 
-// ── STEP 3: Google Gemini — Caption Generation (receives JSON from Vision) ────
+// ── STEP 3: Groq — Caption Generation (receives JSON from Vision) ────
 async function generateCaptionAi(productJson, gender, style) {
-  const apiUrl = `/api/proxy?model=gemini-2.0-flash-lite`;
+  const apiUrl = `/api/proxy?action=groq-caption`;
 
   const productDescription = productJson
     ? (typeof productJson === 'object' ? JSON.stringify(productJson, null, 2) : String(productJson))
@@ -1137,12 +1137,18 @@ Background style: ${style}
 
 ${productDescription || `Fashion product for ${gender} model in a ${style} setting.`}`;
 
+  // Groq pakai format OpenAI-compatible messages[]
   const payload = {
-    contents: [{ parts: [{ text: promptText }] }]
+    messages: [
+      {
+        role: 'user',
+        content: promptText
+      }
+    ]
   };
 
   return await fetchWithRetry(apiUrl, payload, (result) => {
-    return result?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+    return result?.choices?.[0]?.message?.content || null;
   }, 1);
 }
 

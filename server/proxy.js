@@ -1,6 +1,6 @@
 // Vercel Serverless Function Proxy Module
-// Pipeline: Cloudflare Flux 2 Klein 4B (Image Gen) → Cloudflare Llama 3.2 Vision (Analysis) → Google Gemini (Caption)
-// Environment variables: GEMINI_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN
+// Pipeline: Cloudflare Flux 2 Klein 4B (Image Gen) → Cloudflare Llama 3.2 Vision (Analysis) → Groq (Caption)
+// Environment variables: GROQ_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN
 
 const CF_FLUX_MODEL = '@cf/black-forest-labs/flux-2-klein-4b';
 const CF_VISION_MODEL = '@cf/meta/llama-3.2-11b-vision-instruct';
@@ -152,51 +152,41 @@ module.exports = async function handler(req, res) {
   }
 
   // =============================================
-  // Google Gemini API — Caption Generation
+  // Groq API — Caption Generation
   // =============================================
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server' });
-  }
-  if (!model) {
-    return res.status(400).json({ error: 'Query parameter "model" is required' });
+  const groqApiKey = process.env.GROQ_API_KEY;
+  if (!groqApiKey) {
+    return res.status(500).json({ error: 'GROQ_API_KEY not configured on server' });
   }
 
-  const body = JSON.parse(JSON.stringify(req.body));
-
-  // Resolve URL-based images to inlineData untuk Gemini
-  if (body.contents) {
-    for (const content of body.contents) {
-      if (content.parts) {
-        for (let i = 0; i < content.parts.length; i++) {
-          const part = content.parts[i];
-          if (part.fileData && part.fileData.uri) {
-            try {
-              const fetched = await urlToBase64(part.fileData.uri);
-              content.parts[i] = { inlineData: { mimeType: fetched.mimeType, data: fetched.data } };
-            } catch (err) {
-              return res.status(400).json({ error: `Failed to fetch image from URL: ${part.fileData.uri}` });
-            }
-          }
-        }
-      }
-    }
+  const { messages } = req.body || {};
+  if (!messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: 'Parameter "messages" is required and must be an array' });
   }
 
-  let targetModel = model;
-
-  const apiVersion = (targetModel.includes('exp-') || targetModel.includes('preview')) ? 'v1' : 'v1beta';
-  const googleUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${targetModel}:generateContent?key=${apiKey}`;
+  const groqModel = req.query.model || 'llama-3.3-70b-versatile';
+  const groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
 
   try {
-    const response = await fetch(googleUrl, {
+    const response = await fetch(groqUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      headers: {
+        'Authorization': `Bearer ${groqApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: groqModel,
+        messages,
+        temperature: 0.7,
+        max_tokens: 1024
+      })
     });
     const data = await response.json();
-    res.status(response.status).json(data);
+    if (!response.ok) {
+      return res.status(response.status).json({ error: data?.error?.message || JSON.stringify(data) });
+    }
+    return res.status(200).json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
