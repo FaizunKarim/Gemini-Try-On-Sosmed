@@ -1,4 +1,4 @@
-// Single Image State
+﻿// Single Image State
 // Format: null | { type: 'base64' | 'url', value: string, name?: string }
 let uploadedImage = null;
 
@@ -287,13 +287,13 @@ async function generateAllMockups() {
   const studioStyle = document.getElementById('studioStyle').value;
   console.log('Gender:', gender, 'Style:', studioStyle);
 
-  showToast("Memulai pipeline AI: Generasi Gambar  Analisis Visual  Caption...", "info", "Memproses AI");
+  showToast("Memulai Generate Gambar", "info", "Memproses AI");
   setLoadingState(true);
 
   let tryOnImg = null;
   let captionText = null;
 
-  //  STEP 1: Image Generation (Cloudflare Flux 2 Klein 4B) 
+  //  STEP 1: Image Generation (Cloudflare Flux 2 Klein 4B)
   try {
     showToast("Step 1/3: Membuat gambar fashion AI (Flux)...", "info", "Generating Image");
     tryOnImg = await generateImageAi(uploadedImage, gender, studioStyle);
@@ -322,10 +322,10 @@ async function generateAllMockups() {
       <span class="text-[10px] text-slate-400 mt-1">${imgErrMsg}</span>
     `;
     placeholder.classList.remove('hidden');
-    showToast(`Cloudflare Flux gagal: ${imgErrMsg}`, "error", " Flux Image Gen", 5000);
+    showToast(`Cloudflare Flux gagal: ${imgErrMsg}`, "error", "❌ Flux Image Gen", 5000);
   }
 
-  //  STEP 2: Image Analysis (Cloudflare Llama 3.2 Vision) 
+  //  STEP 2: Image Analysis (Cloudflare Llama 3.2 Vision)
   // Analisis gambar INPUT dari user (bukan generated image) agar lebih akurat
   let productJson = null;
   const imageForAnalysis = uploadedImage
@@ -338,7 +338,7 @@ async function generateAllMockups() {
       productJson = await analyzeImageWithVision(imageForAnalysis, gender, studioStyle);
       productJson = enrichProductJson(productJson);
       console.log('Vision Analysis Result:', productJson);
-      showToast("Analisis visual selesai!", "info", "Step 2 ");
+      showToast("Analisis visual selesai!", "info", "Step 2 ✓");
     } catch (visionErr) {
       console.error('Vision Analysis Failed:', visionErr);
       const visionErrMsg = extractErrorMessage(visionErr);
@@ -346,7 +346,7 @@ async function generateAllMockups() {
     }
   }
 
-  //  STEP 3: Caption Generation (Groq) 
+  // STEP 3: Caption Generation (Groq)
   try {
     showToast("Step 3/3: Menyusun caption Instagram (Groq)...", "info", "Generating Caption");
     captionText = await generateCaptionAi(productJson, gender, studioStyle);
@@ -652,7 +652,7 @@ Output a single ultra-realistic commercial fashion image.`;
   });
 }
 
-//  Enrichment Layer: JavaScript yang pintar menambah context dari data deterministik 
+//  Enrichment Layer: JavaScript yang pintar menambah context dari data deterministik
 function enrichProductJson(json) {
   if (!json || typeof json !== 'object') return json;
 
@@ -805,23 +805,23 @@ ATURAN:
 - Jangan sebut kategori produk lain selain yang ada di JSON.
 - Tulis dalam Bahasa Indonesia yang santai dan natural  seperti teman ngobrol, bukan sales pitch.
 - Jangan gunakan kata klise: "berkualitas tinggi", "terbaik", "tak lekang waktu", "elevate your look".
-- Maksimal 60 kata (tidak termasuk hashtag).
-- Gunakan 24 emoji yang natural.
+- Maksimal 40 kata (tidak termasuk hashtag).
+- Gunakan emoji yang natural.
 
 FORMAT OUTPUT (tanpa label, langsung isinya):
-Baris 1: Hook  satu kalimat yang bikin scroll berhenti.
-Baris 23: Cerita singkat  gaya hidup, bukan spesifikasi.
-Baris 4: CTA  satu baris yang bikin mereka action.
-Baris 5: 812 hashtag relevan dalam satu baris.
+Baris 1: Hook satu kalimat yang bikin scroll berhenti.
+Baris 2: Cerita singkat gaya hidup, bukan spesifikasi.
+Baris 4: CTA satu baris yang bikin mereka action.
+Baris 5: Beri hashtag relevan dalam satu baris.
 
 CONTOH untuk Kacamata Hitam:
-Bukan sekadar kacamata  ini statement. 
+Kacamata bukan sembarang kacamata. 
 Clean, confident, dan cocok ke mana aja kamu pergi.
 Gaskeun sebelum kehabisan, cek link bio!
 #kacamata #sunglasses #ootd #streetstyleindo #fashionpria #stylecheck #accessoriesootd #outfitcheck
 
 CONTOH untuk Sneakers:
-Sepatu ini bukan buat jalan  buat flex. 
+Sepatu ini pas buat jalan sama buat flex.
 Bold dan kece, pas buat anak yang gerak terus tapi tetep stylish.
 DM sekarang buat info ukuran dan harga!
 #sneakers #sepatugaul #streetwear #ootdindo #fashionpria #kicksoftheday #hypebeastindo #outfitgoals
@@ -843,7 +843,7 @@ OUTPUT HANYA caption-nya saja. Tidak perlu label, tidak perlu penjelasan.`;
   }, 1);
 }
 
-//  Helper: Ekstrak pesan error yang human-readable 
+// Helper: Ekstrak pesan error yang human-readable
 function extractErrorMessage(err) {
   if (!err) return 'Terjadi kesalahan tidak dikenal.';
   const msg = err.message || String(err);
@@ -855,10 +855,10 @@ function extractErrorMessage(err) {
     const detail = statusMatch[2] ? statusMatch[2].replace(/^\s*[-:]+\s*/, '') : '';
     const codeMap = {
       '400': 'Request tidak valid (400)',
-      '401': 'Autentikasi gagal  periksa API token (401)',
-      '403': 'Akses ditolak  periksa izin API token (403)',
+      '401': 'Autentikasi gagal, periksa API token (401)',
+      '403': 'Akses ditolak, periksa izin API token (403)',
       '404': 'Model tidak ditemukan (404)',
-      '429': 'Kuota habis / Rate limit (429)  coba lagi sebentar',
+      '429': 'Kuota habis / Rate limit (429), coba lagi sebentar',
       '500': 'Server error internal (500)',
       '503': 'Server tidak tersedia sementara (503)'
     };
