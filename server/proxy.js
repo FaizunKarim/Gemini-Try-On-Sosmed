@@ -135,15 +135,26 @@ module.exports = async function handler(req, res) {
     const classifyBody = {
       prompt: classifyPrompt,
       image: [`data:image/png;base64,${cleanB64}`],
-      max_tokens: 10,
+      max_tokens: 20,
       temperature: 0.1,
       top_p: 0.9
     };
 
     try {
       const result = await callCloudflare(cfAccountId, cfApiToken, CF_VISION_MODEL, classifyBody);
+
+      console.log('========== CLASSIFIER FULL RESULT ==========');
+      console.log(JSON.stringify(result, null, 2));
+
       const text = (result.data?.result?.response || result.data?.response || '').trim();
-      return res.status(200).json({ product_type: text });
+
+      console.log('========== CLASSIFIER TEXT ==========');
+      console.log(JSON.stringify(text));
+
+      return res.status(200).json({
+        product_type: text,
+        debug: result.data
+      });
     } catch (err) {
       console.error('Llama Classify Error:', err.message);
       return res.status(500).json({ error: err.message });
@@ -182,25 +193,16 @@ module.exports = async function handler(req, res) {
     const visionBody = {
       prompt,
       image: [`data:image/png;base64,${cleanB64}`],
-      max_tokens: 600,
+      max_tokens: 200,
       temperature: 0.1,
       top_p: 0.9
     };
 
     try {
-      const result = await callCloudflare(cfAccountId, cfApiToken, CF_VISION_MODEL, classifyBody);
-
-      console.log('========== CLASSIFIER FULL RESULT ==========');
-      console.log(JSON.stringify(result, null, 2));
-
-      const text = (result.data?.result?.response || result.data?.response || '').trim();
-
-      console.log('========== CLASSIFIER TEXT ==========');
-      console.log(JSON.stringify(text));
-
+      const result = await callCloudflare(cfAccountId, cfApiToken, CF_VISION_MODEL, visionBody);
+      const text = result.data?.result?.response || result.data?.response || '';
       return res.status(200).json({
-        product_type: text,
-        debug: result.data
+        analysis: text
       });
     } catch (err) {
       console.error('Llama Vision Error:', err.message);
