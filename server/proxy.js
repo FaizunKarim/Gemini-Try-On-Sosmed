@@ -132,9 +132,10 @@ module.exports = async function handler(req, res) {
     }
 
     const cleanB64 = image_b64.includes(',') ? image_b64.split(',')[1] : image_b64;
+    const imageBytes = Array.from(Buffer.from(cleanB64, 'base64'));
 
-    // Cloudflare Llama Vision REST API: image dikirim sebagai field "image" di root body,
-    // prompt sebagai field "prompt" — bukan format messages[].content[].image_url (OpenAI format)
+    // Cloudflare Llama Vision REST API: image dikirim sebagai array of uint8 (integer array),
+    // prompt dikirim sebagai field "prompt"
     const visionBody = {
       messages: [
         {
@@ -142,7 +143,7 @@ module.exports = async function handler(req, res) {
           content: prompt
         }
       ],
-      image: `data:image/png;base64,${cleanB64}`,
+      image: imageBytes,
       max_tokens: 200,
       temperature: 0.1,
       top_p: 0.9
