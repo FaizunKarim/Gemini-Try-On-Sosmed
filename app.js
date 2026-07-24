@@ -736,22 +736,79 @@ function enrichProductJson(json) {
 }
 
 //  STEP 2: Cloudflare Llama 3.2 11B Vision  Product Recognition 
+// ── Helper: ekstrak JSON object pertama yang valid dari teks respons ──────────
+function extractFirstValidJson(text) {
+  if (!text) return null;
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (text[i] === '}') {
+      depth--;
+      if (depth === 0 && start !== -1) {
+        try {
+          return JSON.parse(text.substring(start, i + 1));
+        } catch (_) {
+          start = -1; // JSON tidak valid, cari pembuka berikutnya
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// ── STEP 2: Cloudflare Llama 3.2 11B Vision — Two-call pipeline ──────────────
+// Call 2a: Classifier — satu kata product type
+// Call 2b: Extractor — atribut spesifik berdasarkan type yang sudah diketahui
 async function analyzeImageWithVision(imageDataUrl, gender, style) {
-  const apiUrl = `/api/proxy?action=cloudflare-vision`;
 
-  const visionPrompt = `You are a product recognition model.
+  // Siapkan payload gambar (dipakai di kedua call)
+  const imagePayload = {};
+  if (imageDataUrl.startsWith('data:')) {
+    imagePayload.image_b64 = imageDataUrl.includes(',') ? imageDataUrl.split(',')[1] : imageDataUrl;
+  } else {
+    imagePayload.image_url = imageDataUrl;
+  }
 
-Analyze ONLY the most prominent fashion product in this image.
+  // ── Call 2a: Classifier — identifikasi product type saja ─────────────────
+  let productType = 'Other';
+  try {
+    const classifyResult = await fetchWithRetry(
+      `/api/proxy?action=cloudflare-vision-classify`,
+      imagePayload,
+      (r) => {
+        const raw = (r?.product_type || '').trim();
+        // Ambil satu kata/frasa pertama yang valid — buang kalimat panjang
+        const firstWord = raw.split('\n')[0].split('.')[0].trim();
+        return firstWord || null;
+      }
+    );
+    if (classifyResult) productType = classifyResult;
+    console.log('Classifier result:', productType);
+  } catch (err) {
+    console.warn('Classifier failed, using fallback "Other":', err.message);
+  }
 
-Do NOT describe the person.
-Do NOT describe the background.
-Do NOT infer hidden information.
+  // ── Call 2b: Extractor — atribut berdasarkan type yang sudah diketahui ───
+  const extractPrompt = `You are a product recognition model.
+
+The product in this image is: ${productType}
+
+Analyze ONLY this ${productType} in the image.
+
+There is exactly ONE product. Return EXACTLY ONE JSON object.
+Do NOT return multiple JSON objects.
+Do NOT return examples.
+Do NOT return a list.
+Do NOT describe the person or background.
 If an attribute is not clearly visible, return null.
 
-Return ONLY valid JSON. No markdown. No explanation.
+Return ONLY this single JSON object. No markdown. No explanation. No extra text.
 
 {
-  "type": "",
+  "type": "${productType}",
   "category": "",
   "primary_color": "",
   "secondary_colors": [],
@@ -761,27 +818,19 @@ Return ONLY valid JSON. No markdown. No explanation.
   "confidence": 0.0
 }`;
 
-  const payload = { prompt: visionPrompt };
+  const extractPayload = { prompt: extractPrompt, ...imagePayload };
 
-  if (imageDataUrl.startsWith('data:')) {
-    payload.image_b64 = imageDataUrl.includes(',') ? imageDataUrl.split(',')[1] : imageDataUrl;
-  } else {
-    payload.image_url = imageDataUrl;
-  }
-
-  const result = await fetchWithRetry(apiUrl, payload, (r) => {
-    const text = r?.analysis || '';
-    if (!text) return null;
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        return JSON.parse(jsonMatch[0]);
-      } catch (_) {
-        return text;
-      }
+  const result = await fetchWithRetry(
+    `/api/proxy?action=cloudflare-vision`,
+    extractPayload,
+    (r) => {
+      const text = r?.analysis || '';
+      if (!text) return null;
+      const parsed = extractFirstValidJson(text);
+      if (parsed) return parsed;
+      return null;
     }
-    return text;
-  });
+  );
 
   return result;
 }

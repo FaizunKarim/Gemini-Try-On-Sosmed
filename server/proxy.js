@@ -105,8 +105,59 @@ module.exports = async function handler(req, res) {
   }
 
   // =============================================
+  // ACTION: cloudflare-vision-classify
+  // Step 2a — Llama: Image → product type (satu kata)
+  // =============================================
+  if (action === 'cloudflare-vision-classify') {
+    if (!cfAccountId || !cfApiToken) {
+      return res.status(500).json({ error: 'CF_ACCOUNT_ID or CF_API_TOKEN not configured on server' });
+    }
+
+    let { image_b64, image_url } = req.body || {};
+
+    if (!image_b64 && image_url) {
+      try {
+        const fetched = await urlToBase64(image_url);
+        image_b64 = fetched.data;
+      } catch (err) {
+        return res.status(400).json({ error: `Failed to fetch image from URL: ${err.message}` });
+      }
+    }
+
+    if (!image_b64) {
+      return res.status(400).json({ error: 'Parameter "image_b64" or "image_url" is required' });
+    }
+
+    const cleanB64 = image_b64.includes(',') ? image_b64.split(',')[1] : image_b64;
+
+    const classifyPrompt = `Look at this image. Identify the single most prominent fashion product being worn or carried.
+
+Output ONLY one word from this list:
+T-Shirt, Hoodie, Jacket, Sweater, Polo, Blazer, Shirt, Coat, Pants, Jeans, Shorts, Skirt, Leggings, Dress, Jumpsuit, Shoes, Sneakers, Sandals, Boots, Heels, Hat, Cap, Beanie, Sunglasses, Glasses, Earrings, Necklace, Bracelet, Watch, Ring, Backpack, Handbag, Tote Bag, Sling Bag, Waist Bag, Bag, Other
+
+Do NOT output a sentence. Do NOT explain. Output only the single product type word.`;
+
+    const classifyBody = {
+      prompt: classifyPrompt,
+      image: [`data:image/png;base64,${cleanB64}`],
+      max_tokens: 10,
+      temperature: 0.1,
+      top_p: 0.9
+    };
+
+    try {
+      const result = await callCloudflare(cfAccountId, cfApiToken, CF_VISION_MODEL, classifyBody);
+      const text = (result.data?.result?.response || result.data?.response || '').trim();
+      return res.status(200).json({ product_type: text });
+    } catch (err) {
+      console.error('Llama Classify Error:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // =============================================
   // ACTION: cloudflare-vision
-  // Step 2 — Llama 3.2 11B Vision: Image → JSON Analysis
+  // Step 2b — Llama: Image + known type → JSON attributes
   // =============================================
   if (action === 'cloudflare-vision') {
     if (!cfAccountId || !cfApiToken) {
