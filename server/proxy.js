@@ -1,37 +1,103 @@
-// Vercel Serverless Function Proxy Module — Google Gemini API & Cloudflare Workers AI
+// Vercel Serverless Function Proxy Module
+// Pipeline: Cloudflare Flux 2 Klein 4B (Image Gen) → Cloudflare Llama 3.2 Vision (Analysis) → Google Gemini (Caption)
 // Environment variables: GEMINI_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN
 
-async function urlToInlineData(imageUrl) {
+const CF_FLUX_MODEL = '@cf/black-forest-labs/flux-2-klein-4b';
+const CF_VISION_MODEL = '@cf/meta/llama-3.2-11b-vision-instruct';
+
+async function urlToBase64(imageUrl) {
   const response = await fetch(imageUrl);
+  if (!response.ok) throw new Error(`Failed to fetch URL: ${imageUrl} (status ${response.status})`);
   const buffer = await response.arrayBuffer();
   const base64 = Buffer.from(buffer).toString('base64');
   const mimeType = response.headers.get('content-type') || 'image/png';
   return { mimeType, data: base64 };
 }
 
+async function callCloudflare(accountId, token, model, body) {
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Cloudflare ${model} error (${res.status}): ${errText}`);
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    return { type: 'json', data: await res.json() };
+  } else {
+    const buf = await res.arrayBuffer();
+    return { type: 'binary', data: buf, mimeType: contentType.split(';')[0] || 'image/png' };
+  }
+}
+
 module.exports = async function handler(req, res) {
   const action = req.query.action;
   const model = req.query.model;
 
-  // Handler untuk Cloudflare Workers AI Image Generation (@cf/runwayml/stable-diffusion-v1-5-img2img)
-  if (action === 'cloudflare-image' || model === 'cloudflare-image' || (model && model.includes('stable-diffusion'))) {
-    const cfAccountId = process.env.CF_ACCOUNT_ID;
-    const cfApiToken = process.env.CF_API_TOKEN;
+  const cfAccountId = process.env.CF_ACCOUNT_ID;
+  const cfApiToken = process.env.CF_API_TOKEN;
 
+  // =============================================
+  // ACTION: cloudflare-image
+  // Step 1 — Flux 2 Klein 4B: Prompt → Image
+  // =============================================
+  if (action === 'cloudflare-image') {
     if (!cfAccountId || !cfApiToken) {
       return res.status(500).json({ error: 'CF_ACCOUNT_ID or CF_API_TOKEN not configured on server' });
     }
 
-    let { prompt, image_b64, image_url, strength = 0.65, guidance = 7, num_steps = 8 } = req.body || {};
+    const { prompt } = req.body || {};
+    if (!prompt) {
+      return res.status(400).json({ error: 'Parameter "prompt" is required' });
+    }
 
-    // Jika image_url diberikan, konversi ke base64 di server (bebas CORS)
+    try {
+      const result = await callCloudflare(cfAccountId, cfApiToken, CF_FLUX_MODEL, { prompt });
+
+      if (result.type === 'json') {
+        const img = result.data?.result?.image || result.data?.result;
+        if (img && typeof img === 'string') {
+          return res.status(200).json({ resultImage: `data:image/png;base64,${img}` });
+        }
+        // fallback: return raw json for debugging
+        return res.status(200).json(result.data);
+      } else {
+        const b64 = Buffer.from(result.data).toString('base64');
+        return res.status(200).json({ resultImage: `data:${result.mimeType};base64,${b64}` });
+      }
+    } catch (err) {
+      console.error('Flux Image Gen Error:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // =============================================
+  // ACTION: cloudflare-vision
+  // Step 2 — Llama 3.2 11B Vision: Image → JSON Analysis
+  // =============================================
+  if (action === 'cloudflare-vision') {
+    if (!cfAccountId || !cfApiToken) {
+      return res.status(500).json({ error: 'CF_ACCOUNT_ID or CF_API_TOKEN not configured on server' });
+    }
+
+    let { prompt, image_b64, image_url } = req.body || {};
+
+    // Fetch URL gambar server-side jika input adalah URL (bebas CORS browser)
     if (!image_b64 && image_url) {
       try {
-        const inlineData = await urlToInlineData(image_url);
-        image_b64 = inlineData.data;
+        const fetched = await urlToBase64(image_url);
+        image_b64 = fetched.data;
       } catch (err) {
-        console.error(`Gagal mengunduh gambar dari URL di server (${image_url}):`, err.message);
-        return res.status(400).json({ error: `Gagal mengambil gambar dari URL: ${err.message}` });
+        return res.status(400).json({ error: `Failed to fetch image from URL: ${err.message}` });
       }
     }
 
@@ -39,69 +105,52 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Parameters "prompt" and ("image_b64" or "image_url") are required' });
     }
 
-    // Stripping header data:image/...;base64, jika ada
-    const cleanImageB64 = image_b64.includes(',') ? image_b64.split(',')[1] : image_b64;
+    const cleanB64 = image_b64.includes(',') ? image_b64.split(',')[1] : image_b64;
 
-    const cfUrl = `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/ai/run/@cf/runwayml/stable-diffusion-v1-5-img2img`;
+    // Llama 3.2 Vision menggunakan format messages multimodal
+    const visionBody = {
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: `data:image/png;base64,${cleanB64}` }
+            },
+            {
+              type: 'text',
+              text: prompt
+            }
+          ]
+        }
+      ],
+      max_tokens: 512
+    };
 
     try {
-      const response = await fetch(cfUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${cfApiToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          prompt: prompt,
-          image_b64: cleanImageB64,
-          strength: Number(strength),
-          guidance: Number(guidance),
-          num_steps: Number(num_steps)
-        })
-      });
-
-      if (!response.ok) {
-        let errText = await response.text();
-        console.error('Cloudflare Workers AI Error:', errText);
-        return res.status(response.status).json({ error: `Cloudflare Workers AI Error: ${errText}` });
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-
-      if (contentType.includes('application/json')) {
-        const jsonRes = await response.json();
-        if (jsonRes.result && jsonRes.result.image) {
-          return res.status(200).json({ resultImage: `data:image/png;base64,${jsonRes.result.image}` });
-        } else if (typeof jsonRes.result === 'string') {
-          return res.status(200).json({ resultImage: `data:image/png;base64,${jsonRes.result}` });
-        }
-        return res.status(200).json(jsonRes);
-      } else {
-        const arrayBuffer = await response.arrayBuffer();
-        const base64Data = Buffer.from(arrayBuffer).toString('base64');
-        const mimeType = contentType.split(';')[0] || 'image/png';
-        return res.status(200).json({ resultImage: `data:${mimeType};base64,${base64Data}` });
-      }
-    } catch (error) {
-      console.error('Cloudflare Proxy Error:', error);
-      return res.status(500).json({ error: error.message });
+      const result = await callCloudflare(cfAccountId, cfApiToken, CF_VISION_MODEL, visionBody);
+      const text = result.data?.result?.response || result.data?.response || '';
+      return res.status(200).json({ analysis: text });
+    } catch (err) {
+      console.error('Llama Vision Error:', err.message);
+      return res.status(500).json({ error: err.message });
     }
   }
 
-  // Handler untuk Google Gemini API (Caption Generator)
+  // =============================================
+  // Google Gemini API — Caption Generation
+  // =============================================
   const apiKey = process.env.GEMINI_API_KEY;
-
   if (!apiKey) {
     return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server' });
   }
-
   if (!model) {
     return res.status(400).json({ error: 'Query parameter "model" is required' });
   }
 
-  // Clone body and resolve URL-based images to inlineData
   const body = JSON.parse(JSON.stringify(req.body));
-  
+
+  // Resolve URL-based images to inlineData untuk Gemini
   if (body.contents) {
     for (const content of body.contents) {
       if (content.parts) {
@@ -109,11 +158,9 @@ module.exports = async function handler(req, res) {
           const part = content.parts[i];
           if (part.fileData && part.fileData.uri) {
             try {
-              const inlineData = await urlToInlineData(part.fileData.uri);
-              content.parts[i] = { inlineData };
-              console.log(`Converted URL to inlineData: ${part.fileData.uri}`);
+              const fetched = await urlToBase64(part.fileData.uri);
+              content.parts[i] = { inlineData: { mimeType: fetched.mimeType, data: fetched.data } };
             } catch (err) {
-              console.error(`Failed to fetch URL ${part.fileData.uri}:`, err.message);
               return res.status(400).json({ error: `Failed to fetch image from URL: ${part.fileData.uri}` });
             }
           }
@@ -122,11 +169,8 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // Resolution nama model resmi di Google AI Studio v1beta
   let targetModel = model;
-  if (targetModel === 'gemini-1.5-flash') {
-    targetModel = 'gemini-1.5-flash-latest';
-  }
+  if (targetModel === 'gemini-1.5-flash') targetModel = 'gemini-1.5-flash-latest';
 
   const apiVersion = (targetModel.includes('exp-') || targetModel.includes('preview')) ? 'v1' : 'v1beta';
   const googleUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${targetModel}:generateContent?key=${apiKey}`;
@@ -137,7 +181,6 @@ module.exports = async function handler(req, res) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (error) {

@@ -287,137 +287,135 @@ async function generateAllMockups() {
   const studioStyle = document.getElementById('studioStyle').value;
   console.log('Gender:', gender, 'Style:', studioStyle);
 
-  showToast("Memproses Gambar & Caption AI secara bersamaan...", "info", "Memproses AI");
+  showToast("Memulai pipeline AI: Generasi Gambar → Analisis Visual → Caption...", "info", "Memproses AI");
   setLoadingState(true);
 
+  let tryOnImg = null;
+  let captionText = null;
+
+  // ── STEP 1: Image Generation (Cloudflare Flux 2 Klein 4B) ─────────────────
   try {
-    // Jalankan Image Gen (Cloudflare) dan Caption Gen (Gemini) secara paralel
-    const [imageResult, captionResult] = await Promise.allSettled([
-      generateImageAi(uploadedImage, gender, studioStyle),
-      generateCaptionAi(uploadedImage, gender, studioStyle)
-    ]);
+    showToast("Step 1/3: Membuat gambar fashion AI (Flux)...", "info", "Generating Image");
+    tryOnImg = await generateImageAi(uploadedImage, gender, studioStyle);
 
-    const tryOnImg = imageResult.status === 'fulfilled' ? imageResult.value : null;
-    const captionText = captionResult.status === 'fulfilled' ? captionResult.value : null;
-
-    console.log('Parallel Generation Complete:', {
-      imageStatus: imageResult.status,
-      tryOnImg: !!tryOnImg,
-      captionStatus: captionResult.status,
-      captionText: !!captionText
-    });
-
-    let successCount = 0;
-
-    // Display Try-On Image jika berhasil
     if (tryOnImg) {
-      successCount++;
       document.getElementById('tryOnPlaceholder').classList.add('hidden');
       const imgEl = document.getElementById('imgTryOn');
       imgEl.src = tryOnImg;
       imgEl.classList.remove('hidden');
-      
       const downloadBtn = document.getElementById('btnDownloadTryOn');
       if (downloadBtn) downloadBtn.href = tryOnImg;
-      
       document.getElementById('overlayTryOn').classList.remove('hidden');
+      showToast("Gambar berhasil dibuat!", "success", "Step 1 ✓");
     } else {
-      const placeholder = document.getElementById('tryOnPlaceholder');
-      placeholder.innerHTML = `
-        <div class="w-16 h-16 rounded-2xl bg-rose-50 flex items-center justify-center mb-3 text-rose-500">
-          <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
-        </div>
-        <span class="text-xs font-semibold text-rose-500">Gagal membuat gambar AI.</span>
-        <span class="text-[10px] text-slate-400 mt-1">Coba periksa token Cloudflare atau coba lagi.</span>
-      `;
-      placeholder.classList.remove('hidden');
+      throw new Error('Flux returned empty image');
     }
+  } catch (imgErr) {
+    console.error('Image Gen Failed:', imgErr);
+    const imgErrMsg = extractErrorMessage(imgErr);
+    const placeholder = document.getElementById('tryOnPlaceholder');
+    placeholder.innerHTML = `
+      <div class="w-16 h-16 rounded-2xl bg-rose-50 flex items-center justify-center mb-3 text-rose-500">
+        <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+      </div>
+      <span class="text-xs font-semibold text-rose-500">Gagal membuat gambar AI (Flux).</span>
+      <span class="text-[10px] text-slate-400 mt-1">${imgErrMsg}</span>
+    `;
+    placeholder.classList.remove('hidden');
+    showToast(`Cloudflare Flux gagal: ${imgErrMsg}`, "error", "❌ Flux Image Gen", 5000);
+  }
 
-    // Display & Enable Caption Textarea jika berhasil (meski gambar gagal)
+  // ── STEP 2: Image Analysis (Cloudflare Llama 3.2 Vision) ─────────────────
+  let productJson = null;
+  const imageForAnalysis = tryOnImg || null; // Analisis generated image, atau skip jika gagal
+
+  if (imageForAnalysis) {
+    try {
+      showToast("Step 2/3: Menganalisis produk (Llama Vision)...", "info", "Analyzing");
+      productJson = await analyzeImageWithVision(imageForAnalysis);
+      console.log('Vision Analysis Result:', productJson);
+      showToast("Analisis visual selesai!", "info", "Step 2 ✓");
+    } catch (visionErr) {
+      console.error('Vision Analysis Failed:', visionErr);
+      const visionErrMsg = extractErrorMessage(visionErr);
+      showToast(`Llama Vision gagal: ${visionErrMsg}. Caption tetap diproses...`, "warning", "⚠️ Llama Vision", 5000);
+    }
+  }
+
+  // ── STEP 3: Caption Generation (Google Gemini) ────────────────────────────
+  try {
+    showToast("Step 3/3: Menyusun caption Instagram (Gemini)...", "info", "Generating Caption");
+    captionText = await generateCaptionAi(productJson, gender, studioStyle);
+
     if (captionText) {
-      successCount++;
       const capContainer = document.getElementById('captionContainer');
       const capText = document.getElementById('captionText');
       const capBtn = document.getElementById('btnCopyCaption');
       const badge = document.getElementById('captionStatusBadge');
       const instruction = document.getElementById('captionInstruction');
 
-      // Unlock container & textarea
       capContainer.classList.remove('opacity-70');
       capText.disabled = false;
       capText.value = captionText;
       capText.className = "w-full bg-white p-4 rounded-xl border border-teal-100/80 shadow-inner text-xs sm:text-sm text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-teal-500 leading-relaxed resize-y";
-
-      // Enable copy button
       capBtn.disabled = false;
       capBtn.className = "text-xs font-bold text-teal-600 bg-white hover:bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer";
-
-      // Update badge & hint
       badge.className = "text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1";
       badge.innerHTML = `<i class="fa-solid fa-lock-open text-[9px]"></i> Siap Diedit`;
-
       instruction.innerText = "Silakan edit teks di bawah ini jika ingin menyesuaikan harga, promo, atau pesan khusus:";
     } else {
-      const capText = document.getElementById('captionText');
-      if (capText) capText.value = "Gagal membuat caption AI. Silakan coba lagi nanti.";
+      throw new Error('Gemini returned empty caption');
     }
-
-    // Feedback Notifikasi Hasil
-    if (successCount === 2) {
-      if (window.showAlertModal) {
-        showAlertModal({
-          title: 'Mockup & Caption Berhasil Dibuat!',
-          message: 'Hasil tampilan model try-on dan caption copywriting promosi AI telah selesai diproses secara bersamaan.',
-          type: 'success',
-          confirmText: 'Lihat Hasil'
-        });
-      }
-      showToast("Gambar & Caption berhasil dibuat!", "success", "Selesai ✨");
-    } else if (successCount === 1) {
-      if (tryOnImg) {
-        showToast("Gambar berhasil dibuat, namun caption gagal diproses.", "warning", "Parsial Selesai");
-      } else {
-        showToast("Caption berhasil dibuat! Namun gambar gagal diproses.", "warning", "Parsial Selesai");
-      }
-    } else {
-      showToast("Gagal memproses Gambar maupun Caption AI. Silakan coba lagi.", "error", "Gagal Proses AI");
-    }
-
-  } catch (err) {
-    console.error("Parallel Generate Error:", err);
-    showToast("Terjadi kesalahan saat memproses AI. Silakan coba lagi.", "error", "Gagal Proses AI");
-  } finally {
-    setLoadingState(false);
+  } catch (capErr) {
+    console.error('Caption Gen Failed:', capErr);
+    const capErrMsg = extractErrorMessage(capErr);
+    const capText = document.getElementById('captionText');
+    if (capText) capText.value = `Gagal membuat caption AI.\n\nDetail: ${capErrMsg}`;
+    showToast(`Gemini gagal: ${capErrMsg}`, "error", "❌ Gemini Caption", 6000);
   }
+
+  // ── FINAL: Feedback ────────────────────────────────────────────────────────
+  const bothDone = tryOnImg && captionText;
+  const partialDone = tryOnImg || captionText;
+
+  if (bothDone) {
+    if (window.showAlertModal) {
+      showAlertModal({
+        title: 'Pipeline Selesai! 🎉',
+        message: 'Gambar fashion AI dan caption Instagram promosi telah berhasil dibuat.',
+        type: 'success',
+        confirmText: 'Lihat Hasil'
+      });
+    }
+    showToast("Gambar & Caption berhasil dibuat!", "success", "Selesai ✨");
+  } else if (partialDone) {
+    showToast(tryOnImg ? "Gambar OK, caption gagal." : "Caption OK, gambar gagal.", "warning", "Parsial Selesai");
+  } else {
+    showToast("Semua proses AI gagal. Coba lagi.", "error", "Pipeline Gagal");
+  }
+
+  setLoadingState(false);
 }
 
+// ── STEP 1: Cloudflare Flux 2 Klein 4B — Image Generation ───────────────────
 async function generateImageAi(image, gender, style) {
   const apiUrl = `/api/proxy?action=cloudflare-image`;
 
-  const promptText = `A high-end 1:1 commercial fashion lookbook try-on photograph of an Indonesian ${gender.toLowerCase()} fashion model wearing the EXACT product shown in the input image.
+  const promptText = `You are a professional fashion product photography AI.
 
-STRICT ITEM CONSERVATION:
-- Do NOT modify, alter, recolor, reshape, or redesign the original product in the input image. 
-- Keep 100% exact original colors, shape, proportions, brand details, texture, and visual appearance of the item intact.
+The uploaded image is the product reference.
 
-DYNAMIC ADAPTIVE TRY-ON FRAMING & POSE:
-- IF FOOTWEAR / SHOES: Shoot a close-up macro fashion shot focusing strictly on the feet and lower legs wearing the shoes. The model can pose sitting cross-legged, sitting relaxed on a step, or taking a casual stride. Focus sharply on the shoes, ankles, and feet.
-- IF TOPS / SHIRTS / JACKETS: Shoot a half-body torso portrait focusing strictly on the shirt/garment from neck to waist. Exclude the model's face / crop out the face to focus purely on the clothing fit.
-- IF EYEWEAR / GLASSES / HATS: Shoot an intimate close-up headshot portrait focusing strictly on the head, face, and eyewear/glasses.
-- IF PANTS / BOTTOMS: Shoot a lower-body portrait focusing from waist down to ankles.
-- IF FULL OUTFIT / DRESS: Shoot a full-body or 3/4 body fashion pose fitting comfortably in a square 1:1 frame.
+Generate a photorealistic lifestyle fashion image featuring an AI-generated model naturally wearing or using the exact product from the reference image.
 
-STYLE & ENVIRONMENT:
-- Background setting: ${style}.
-- Model gender: Indonesian ${gender}.
-- Professional studio lighting, photorealistic, 8k resolution, crisp product details, sharp focus, aesthetic composition.`;
+Preserve the product identity as accurately as possible including colors, logo, texture, stitching, material, proportions, shape and design.
 
-  const payload = {
-    prompt: promptText,
-    strength: 0.38,
-    guidance: 7.5,
-    num_steps: 12
-  };
+Do not redesign the product.
+
+Create a premium commercial fashion photoshoot with professional lighting, realistic human model, luxury aesthetic and close-up product visibility.
+
+Model gender: ${gender}. Background: ${style}.`;
+
+  const payload = { prompt: promptText };
 
   if (image.type === 'base64') {
     const val = image.value;
@@ -427,62 +425,119 @@ STYLE & ENVIRONMENT:
   }
 
   return await fetchWithRetry(apiUrl, payload, (result) => {
-    if (result && result.resultImage) {
-      return result.resultImage;
-    } else if (result && result.result && result.result.image) {
-      return `data:image/png;base64,${result.result.image}`;
-    }
+    if (result && result.resultImage) return result.resultImage;
+    if (result && result.result && result.result.image) return `data:image/png;base64,${result.result.image}`;
     return null;
   });
 }
 
-async function generateCaptionAi(image, gender, style) {
-  const apiUrl = `/api/proxy?model=gemini-1.5-flash-latest`;
+// ── STEP 2: Cloudflare Llama 3.2 11B Vision — Image Analysis ─────────────────
+async function analyzeImageWithVision(imageDataUrl) {
+  const apiUrl = `/api/proxy?action=cloudflare-vision`;
 
-  const promptText = `Bertindaklah sebagai Senior Fashion Copywriter & Performance Marketer kelas atas untuk brand lokal Indonesia.
+  const visionPrompt = `Analyze this fashion product image and return ONLY a valid JSON object with no extra text, no markdown, no code block:
+{
+  "product_type": "",
+  "category": "",
+  "gender": "",
+  "primary_color": "",
+  "style": "",
+  "material": "",
+  "visible_logo": "",
+  "key_features": [],
+  "background": "",
+  "overall_aesthetic": ""
+}
+Only describe visible facts. Do not make assumptions.`;
 
-TUGAS 1: PERIKSA & DETEKSI PRODUK
-Analisis foto produk fashion yang dilampirkan secara teliti. Tentukan barang apa yang diunggah (misal: HANYA Sepatu Sneakers, HANYA Atasan/Kemeja, HANYA Celana/Bawahan, atau Setelan).
+  const payload = { prompt: visionPrompt };
 
-TUGAS 2: BUAT MARKETING COPYWRITING (AIDA FRAMEWORK)
-Tuliskan 1 caption penawaran Instagram/TikTok Feed berkonversi tinggi dalam Bahasa Indonesia yang gaul, santai, namun sangat persuasif sesuai produk spesifik yang dideteksi.
-
-Gunakan struktur AIDA:
-1. ATTENTION (Hook Saja): Judul bombastis + emoji yang bikin netizen 'stop scrolling'. Jangan pakai kata 'Hook'. Sesuaikan judul dengan jenis barang.
-2. INTEREST (Pain Point / Solusi): Bahas masalah nyata target pasar dan bagaimana produk ini jadi solusinya.
-3. DESIRE (USP / Key Selling Point): Tonjolkan nilai tambah (kenyamanan bahan, detail jahitan rapi, fleksibel untuk OOTD harian/formal, visual aesthetic).
-4. ACTION (Call to Action / CTA): Ajakan beli yang jelas dan mudah (contoh: "Klik link di bio / DM sekarang sebelum kehabisan slot promo!").
-5. HASHTAGS: Berikan 6-8 hashtag niche & viral lokal yang sangat relevan.
-
-Target Gender Model: ${gender}
-Gaya Latar Foto: ${style}`;
-
-  const parts = [{ text: promptText }];
-  
-  if (image.type === 'base64') {
-    const mimeType = image.value.substring(image.value.indexOf(":") + 1, image.value.indexOf(";"));
-    const base64Data = image.value.split(",")[1];
-    parts.push({
-      inlineData: {
-        mimeType: mimeType || "image/png",
-        data: base64Data
-      }
-    });
-  } else if (image.type === 'url') {
-    parts.push({
-      fileData: {
-        uri: image.value
-      }
-    });
+  if (imageDataUrl.startsWith('data:')) {
+    payload.image_b64 = imageDataUrl.includes(',') ? imageDataUrl.split(',')[1] : imageDataUrl;
+  } else {
+    payload.image_url = imageDataUrl;
   }
 
+  const result = await fetchWithRetry(apiUrl, payload, (r) => {
+    const text = r?.analysis || '';
+    if (!text) return null;
+    // Ekstrak JSON dari respons teks
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[0]);
+      } catch (_) {
+        return text; // return raw text jika parse gagal
+      }
+    }
+    return text;
+  });
+
+  return result;
+}
+
+// ── STEP 3: Google Gemini — Caption Generation (receives JSON from Vision) ────
+async function generateCaptionAi(productJson, gender, style) {
+  const apiUrl = `/api/proxy?model=gemini-1.5-flash-latest`;
+
+  // Jadikan JSON menjadi teks deskriptif untuk Gemini
+  const productDescription = productJson
+    ? (typeof productJson === 'object' ? JSON.stringify(productJson, null, 2) : String(productJson))
+    : `Fashion product for ${gender} model in ${style} setting.`;
+
+  const promptText = `You are a professional social media copywriter.
+
+Here is the JSON analysis of a fashion product photo generated by an AI vision model:
+
+${productDescription}
+
+Based ONLY on this product analysis data, generate an engaging Instagram promotional caption.
+
+Requirements:
+- Persuasive marketing tone
+- Maximum 150 words
+- Include relevant emojis
+- Strong call-to-action
+- Include 8–12 relevant hashtags
+- Write in Indonesian (Bahasa Indonesia) with a casual, trendy, and persuasive tone
+
+Target gender: ${gender}
+Background style: ${style}`;
+
   const payload = {
-    contents: [{ parts: parts }]
+    contents: [{ parts: [{ text: promptText }] }]
   };
 
   return await fetchWithRetry(apiUrl, payload, (result) => {
     return result?.candidates?.[0]?.content?.parts?.[0]?.text || null;
   });
+}
+
+// ── Helper: Ekstrak pesan error yang human-readable ──────────────────────────
+function extractErrorMessage(err) {
+  if (!err) return 'Terjadi kesalahan tidak dikenal.';
+  const msg = err.message || String(err);
+
+  // Tangkap status HTTP
+  const statusMatch = msg.match(/HTTP Error status: (\d+)(.*)/);
+  if (statusMatch) {
+    const code = statusMatch[1];
+    const detail = statusMatch[2] ? statusMatch[2].replace(/^\s*[-:]+\s*/, '') : '';
+    const codeMap = {
+      '400': 'Request tidak valid (400)',
+      '401': 'Autentikasi gagal — periksa API token (401)',
+      '403': 'Akses ditolak — periksa izin API token (403)',
+      '404': 'Model tidak ditemukan (404)',
+      '429': 'Kuota habis / Rate limit (429) — coba lagi sebentar',
+      '500': 'Server error internal (500)',
+      '503': 'Server tidak tersedia sementara (503)'
+    };
+    const label = codeMap[code] || `Error ${code}`;
+    return detail ? `${label}: ${detail}` : label;
+  }
+
+  // Truncate jika terlalu panjang
+  return msg.length > 120 ? msg.slice(0, 120) + '...' : msg;
 }
 
 async function fetchWithRetry(url, payload, resultExtractor, maxRetries = 3) {
@@ -518,15 +573,23 @@ async function fetchWithRetry(url, payload, resultExtractor, maxRetries = 3) {
       }
 
       if (!response.ok) {
-        let errorDetail = '';
+        let serverMsg = '';
         try {
           const errData = await response.json();
-          errorDetail = JSON.stringify(errData);
+          // Ekstrak pesan error dari berbagai format respons
+          serverMsg = errData?.error?.message
+            || errData?.error
+            || errData?.message
+            || JSON.stringify(errData);
         } catch (_) {
-          errorDetail = await response.text();
+          serverMsg = await response.text();
         }
-        console.error('API Error Response:', errorDetail);
-        throw new Error(`HTTP Error status: ${response.status}`);
+        // Potong jika terlalu panjang
+        if (typeof serverMsg === 'string' && serverMsg.length > 200) {
+          serverMsg = serverMsg.slice(0, 200) + '...';
+        }
+        console.error('API Error Response:', serverMsg);
+        throw new Error(`HTTP Error status: ${response.status} - ${serverMsg}`);
       }
 
       const data = await response.json();
