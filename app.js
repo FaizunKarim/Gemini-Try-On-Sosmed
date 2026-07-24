@@ -794,11 +794,21 @@ Return ONLY a single valid JSON object. No markdown code blocks. No explanation.
     `/api/proxy?action=cloudflare-vision`,
     payload,
     (r) => {
-      const text = r?.analysis || '';
-      if (!text) return null;
+      console.log("VISION RAW RESPONSE:", r);
+      const text = r?.analysis || r?.text || '';
+      console.log("VISION RAW TEXT:", text);
+
+      if (!text) return { type: "Other", confidence: 0.5 };
+
       const parsed = extractFirstValidJson(text);
       if (parsed) return parsed;
-      return null;
+
+      // Fallback jika Vision mengembalikan teks biasa tanpa JSON format
+      return {
+        type: text.trim().substring(0, 50) || "Other",
+        raw_text: text,
+        confidence: 0.5
+      };
     }
   );
 
