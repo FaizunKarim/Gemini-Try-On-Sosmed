@@ -779,6 +779,8 @@ async function analyzeImageWithVision(imageDataUrl, gender, style) {
       `/api/proxy?action=cloudflare-vision-classify`,
       imagePayload,
       (r) => {
+        console.log("SERVER RESPONSE:", r);
+        
         const allowed = [
           "T-Shirt","Hoodie","Jacket","Sweater","Polo","Blazer","Shirt",
           "Coat","Pants","Jeans","Shorts","Skirt","Leggings","Dress",

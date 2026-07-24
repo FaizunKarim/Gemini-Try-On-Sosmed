@@ -188,9 +188,20 @@ module.exports = async function handler(req, res) {
     };
 
     try {
-      const result = await callCloudflare(cfAccountId, cfApiToken, CF_VISION_MODEL, visionBody);
-      const text = result.data?.result?.response || result.data?.response || '';
-      return res.status(200).json({ analysis: text });
+      const result = await callCloudflare(cfAccountId, cfApiToken, CF_VISION_MODEL, classifyBody);
+
+      console.log('========== CLASSIFIER FULL RESULT ==========');
+      console.log(JSON.stringify(result, null, 2));
+
+      const text = (result.data?.result?.response || result.data?.response || '').trim();
+
+      console.log('========== CLASSIFIER TEXT ==========');
+      console.log(JSON.stringify(text));
+
+      return res.status(200).json({
+        product_type: text,
+        debug: result.data
+      });
     } catch (err) {
       console.error('Llama Vision Error:', err.message);
       return res.status(500).json({ error: err.message });
