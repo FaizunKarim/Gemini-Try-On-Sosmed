@@ -130,12 +130,58 @@ module.exports = async function handler(req, res) {
 
     const cleanB64 = image_b64.includes(',') ? image_b64.split(',')[1] : image_b64;
 
-    const classifyPrompt = `What object is shown in this image ? Answer with one value only.`;
+    const classifyPrompt = `Identify the SINGLE fashion product in this image.
+
+Choose EXACTLY ONE from this list:
+
+T-Shirt
+Hoodie
+Jacket
+Sweater
+Polo
+Blazer
+Shirt
+Coat
+Pants
+Jeans
+Shorts
+Skirt
+Leggings
+Dress
+Jumpsuit
+Shoes
+Sneakers
+Sandals
+Boots
+Heels
+Hat
+Cap
+Beanie
+Sunglasses
+Glasses
+Earrings
+Necklace
+Bracelet
+Watch
+Ring
+Backpack
+Handbag
+Tote Bag
+Sling Bag
+Waist Bag
+Bag
+Other
+
+Return ONLY the chosen value.
+
+No punctuation.
+No explanation.
+No sentence.`;
 
     const classifyBody = {
       prompt: classifyPrompt,
       image: [`data:image/png;base64,${cleanB64}`],
-      max_tokens: 200,
+      max_tokens: 20,
       temperature: 0.1,
       top_p: 0.9
     };
