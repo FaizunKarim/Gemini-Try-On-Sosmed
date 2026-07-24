@@ -130,12 +130,12 @@ module.exports = async function handler(req, res) {
 
     const cleanB64 = image_b64.includes(',') ? image_b64.split(',')[1] : image_b64;
 
-    const classifyPrompt = `What object is shown in this image ? Answer with one word only.`;
+    const classifyPrompt = `What object is shown in this image ? Answer with one value only.`;
 
     const classifyBody = {
       prompt: classifyPrompt,
       image: [`data:image/png;base64,${cleanB64}`],
-      max_tokens: 20,
+      max_tokens: 200,
       temperature: 0.1,
       top_p: 0.9
     };
