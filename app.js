@@ -1375,15 +1375,9 @@ function copyCaption() {
     return;
   }
 
-  captionInput.select();
-  captionInput.setSelectionRange(0, 99999);
-
-  const tempInput = document.createElement('textarea');
-  tempInput.value = text;
-  document.body.appendChild(tempInput);
-  tempInput.select();
-  document.execCommand('copy');
-  document.body.removeChild(tempInput);
-
-  showToast("Caption tersalin ke clipboard!", "success", "Berhasil Disalin");
+  navigator.clipboard.writeText(text).then(() => {
+    showToast("Caption tersalin ke clipboard!", "success", "Berhasil Disalin");
+  }).catch(() => {
+    showToast("Gagal menyalin. Silakan salin manual.", "error", "Gagal Salin");
+  });
 }
