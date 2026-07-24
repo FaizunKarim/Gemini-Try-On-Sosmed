@@ -778,7 +778,7 @@ Rules:
 
 // ── STEP 3: Google Gemini — Caption Generation (receives JSON from Vision) ────
 async function generateCaptionAi(productJson, gender, style) {
-  const apiUrl = `/api/proxy?model=gemini-2.0-flash`;
+  const apiUrl = `/api/proxy?model=gemini-2.0-flash-lite`;
 
   const productDescription = productJson
     ? (typeof productJson === 'object' ? JSON.stringify(productJson, null, 2) : String(productJson))
@@ -1143,7 +1143,7 @@ ${productDescription || `Fashion product for ${gender} model in a ${style} setti
 
   return await fetchWithRetry(apiUrl, payload, (result) => {
     return result?.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  });
+  }, 1);
 }
 
 // ── Helper: Ekstrak pesan error yang human-readable ──────────────────────────
