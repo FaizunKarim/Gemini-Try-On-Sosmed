@@ -287,13 +287,13 @@ async function generateAllMockups() {
   const studioStyle = document.getElementById('studioStyle').value;
   console.log('Gender:', gender, 'Style:', studioStyle);
 
-  showToast("Memulai pipeline AI: Generasi Gambar → Analisis Visual → Caption...", "info", "Memproses AI");
+  showToast("Memulai pipeline AI: Generasi Gambar  Analisis Visual  Caption...", "info", "Memproses AI");
   setLoadingState(true);
 
   let tryOnImg = null;
   let captionText = null;
 
-  // ── STEP 1: Image Generation (Cloudflare Flux 2 Klein 4B) ─────────────────
+  //  STEP 1: Image Generation (Cloudflare Flux 2 Klein 4B) 
   try {
     showToast("Step 1/3: Membuat gambar fashion AI (Flux)...", "info", "Generating Image");
     tryOnImg = await generateImageAi(uploadedImage, gender, studioStyle);
@@ -306,7 +306,7 @@ async function generateAllMockups() {
       const downloadBtn = document.getElementById('btnDownloadTryOn');
       if (downloadBtn) downloadBtn.href = tryOnImg;
       document.getElementById('overlayTryOn').classList.remove('hidden');
-      showToast("Gambar berhasil dibuat!", "success", "Step 1 ✓");
+      showToast("Gambar berhasil dibuat!", "success", "Step 1 ");
     } else {
       throw new Error('Flux returned empty image');
     }
@@ -322,10 +322,10 @@ async function generateAllMockups() {
       <span class="text-[10px] text-slate-400 mt-1">${imgErrMsg}</span>
     `;
     placeholder.classList.remove('hidden');
-    showToast(`Cloudflare Flux gagal: ${imgErrMsg}`, "error", "❌ Flux Image Gen", 5000);
+    showToast(`Cloudflare Flux gagal: ${imgErrMsg}`, "error", " Flux Image Gen", 5000);
   }
 
-  // ── STEP 2: Image Analysis (Cloudflare Llama 3.2 Vision) ─────────────────
+  //  STEP 2: Image Analysis (Cloudflare Llama 3.2 Vision) 
   // Analisis gambar INPUT dari user (bukan generated image) agar lebih akurat
   let productJson = null;
   const imageForAnalysis = uploadedImage
@@ -336,17 +336,17 @@ async function generateAllMockups() {
     try {
       showToast("Step 2/3: Menganalisis produk (Llama Vision)...", "info", "Analyzing");
       productJson = await analyzeImageWithVision(imageForAnalysis, gender, studioStyle);
-      productJson = validateAndSanitizeProductJson(productJson);
+      productJson = enrichProductJson(productJson);
       console.log('Vision Analysis Result:', productJson);
-      showToast("Analisis visual selesai!", "info", "Step 2 ✓");
+      showToast("Analisis visual selesai!", "info", "Step 2 ");
     } catch (visionErr) {
       console.error('Vision Analysis Failed:', visionErr);
       const visionErrMsg = extractErrorMessage(visionErr);
-      showToast(`Llama Vision gagal: ${visionErrMsg}. Caption tetap diproses...`, "warning", "⚠️ Llama Vision", 5000);
+      showToast(`Llama Vision gagal: ${visionErrMsg}. Caption tetap diproses...`, "warning", " Llama Vision", 5000);
     }
   }
 
-  // ── STEP 3: Caption Generation (Groq) ────────────────────────────
+  //  STEP 3: Caption Generation (Groq) 
   try {
     showToast("Step 3/3: Menyusun caption Instagram (Groq)...", "info", "Generating Caption");
     captionText = await generateCaptionAi(productJson, gender, studioStyle);
@@ -375,23 +375,23 @@ async function generateAllMockups() {
     const capErrMsg = extractErrorMessage(capErr);
     const capText = document.getElementById('captionText');
     if (capText) capText.value = `Gagal membuat caption AI.\n\nDetail: ${capErrMsg}`;
-    showToast(`Groq gagal: ${capErrMsg}`, "error", "❌ Groq Caption", 6000);
+    showToast(`Groq gagal: ${capErrMsg}`, "error", " Groq Caption", 6000);
   }
 
-  // ── FINAL: Feedback ────────────────────────────────────────────────────────
+  //  FINAL: Feedback 
   const bothDone = tryOnImg && captionText;
   const partialDone = tryOnImg || captionText;
 
   if (bothDone) {
     if (window.showAlertModal) {
       showAlertModal({
-        title: 'Pipeline Selesai! 🎉',
+        title: 'Pipeline Selesai! ',
         message: 'Gambar fashion AI dan caption Instagram promosi telah berhasil dibuat.',
         type: 'success',
         confirmText: 'Lihat Hasil'
       });
     }
-    showToast("Gambar & Caption berhasil dibuat!", "success", "Selesai ✨");
+    showToast("Gambar & Caption berhasil dibuat!", "success", "Selesai ");
   } else if (partialDone) {
     showToast(tryOnImg ? "Gambar OK, caption gagal." : "Caption OK, gambar gagal.", "warning", "Parsial Selesai");
   } else {
@@ -401,7 +401,7 @@ async function generateAllMockups() {
   setLoadingState(false);
 }
 
-// ── STEP 1: Cloudflare Flux 2 Klein 4B — Image Generation ───────────────────
+//  STEP 1: Cloudflare Flux 2 Klein 4B  Image Generation 
 async function generateImageAi(image, gender, style) {
   const apiUrl = `/api/proxy?action=cloudflare-image`;
 
@@ -448,17 +448,17 @@ Automatically choose the camera framing based on the product category.
 
 If the product is:
 
-• T-Shirt
-• Hoodie
-• Jacket
-• Sweater
-• Polo
-• Jersey
-• Blazer
-• Shirt
-• Coat
+ T-Shirt
+ Hoodie
+ Jacket
+ Sweater
+ Polo
+ Jersey
+ Blazer
+ Shirt
+ Coat
 
-→ Generate an upper-body or half-body fashion portrait.
+ Generate an upper-body or half-body fashion portrait.
 
 The clothing must be fully visible and become the primary focus.
 
@@ -468,13 +468,13 @@ The model's face may be visible but should never dominate the composition.
 
 If the product is:
 
-• Pants
-• Jeans
-• Shorts
-• Skirt
-• Leggings
+ Pants
+ Jeans
+ Shorts
+ Skirt
+ Leggings
 
-→ Generate a lower-body fashion shot.
+ Generate a lower-body fashion shot.
 
 Focus on the waist, hips, and legs.
 
@@ -484,13 +484,13 @@ The pants must be completely visible.
 
 If the product is:
 
-• Shoes
-• Sneakers
-• Sandals
-• Boots
-• High Heels
+ Shoes
+ Sneakers
+ Sandals
+ Boots
+ High Heels
 
-→ Generate a close-up lifestyle shot focusing on the feet.
+ Generate a close-up lifestyle shot focusing on the feet.
 
 The footwear must occupy most of the frame.
 
@@ -500,12 +500,12 @@ Natural standing or walking poses.
 
 If the product is:
 
-• Hat
-• Cap
-• Beanie
-• Helmet
+ Hat
+ Cap
+ Beanie
+ Helmet
 
-→ Generate a portrait focusing on the head and upper body.
+ Generate a portrait focusing on the head and upper body.
 
 The headwear must be the primary subject.
 
@@ -513,10 +513,10 @@ The headwear must be the primary subject.
 
 If the product is:
 
-• Sunglasses
-• Glasses
+ Sunglasses
+ Glasses
 
-→ Generate a portrait emphasizing the face and eyewear.
+ Generate a portrait emphasizing the face and eyewear.
 
 The glasses must remain clearly visible.
 
@@ -524,13 +524,13 @@ The glasses must remain clearly visible.
 
 If the product is:
 
-• Earrings
-• Necklace
-• Bracelet
-• Watch
-• Ring
+ Earrings
+ Necklace
+ Bracelet
+ Watch
+ Ring
 
-→ Generate a close-up lifestyle portrait emphasizing the accessory.
+ Generate a close-up lifestyle portrait emphasizing the accessory.
 
 Keep the accessory as the visual focus.
 
@@ -538,9 +538,9 @@ Keep the accessory as the visual focus.
 
 If the product is:
 
-• Backpack
+ Backpack
 
-→ Generate a lifestyle shot showing the model naturally wearing the backpack.
+ Generate a lifestyle shot showing the model naturally wearing the backpack.
 
 Prefer rear three-quarter angle or side angle so the backpack is clearly visible.
 
@@ -548,11 +548,11 @@ Prefer rear three-quarter angle or side angle so the backpack is clearly visible
 
 If the product is:
 
-• Handbag
-• Shoulder Bag
-• Tote Bag
+ Handbag
+ Shoulder Bag
+ Tote Bag
 
-→ Generate a fashion pose naturally holding or wearing the bag.
+ Generate a fashion pose naturally holding or wearing the bag.
 
 Focus on the arm, shoulder, and bag.
 
@@ -560,11 +560,11 @@ Focus on the arm, shoulder, and bag.
 
 If the product is:
 
-• Sling Bag
-• Waist Bag
-• Belt Bag
+ Sling Bag
+ Waist Bag
+ Belt Bag
 
-→ Generate a waist-up or full-body shot emphasizing the bag placement.
+ Generate a waist-up or full-body shot emphasizing the bag placement.
 
 ----------------------------------------
 
@@ -652,209 +652,112 @@ Output a single ultra-realistic commercial fashion image.`;
   });
 }
 
-// ── Validation Layer: Sanitize JSON dari Llama sebelum dikirim ke Groq ────────
-function validateAndSanitizeProductJson(json) {
+//  Enrichment Layer: JavaScript yang pintar menambah context dari data deterministik 
+function enrichProductJson(json) {
   if (!json || typeof json !== 'object') return json;
 
-  const type = (json?.product?.type || '').toLowerCase();
-  if (!type) return json;
+  const raw = (json.type || '').toLowerCase().trim();
+  if (!raw) return json;
 
-  // Definisi field mana yang TIDAK relevan per kategori produk
-  const nullFields = {
-    appearance: [],
-    usage: []
+  // Normalisasi type ke nama standar
+  const typeMap = {
+    't-shirt': 'T-Shirt', 'tshirt': 'T-Shirt', 'kaos': 'T-Shirt',
+    'hoodie': 'Hoodie',
+    'jacket': 'Jacket', 'jaket': 'Jacket',
+    'sweater': 'Sweater',
+    'polo': 'Polo Shirt',
+    'jersey': 'Jersey',
+    'blazer': 'Blazer',
+    'shirt': 'Shirt', 'kemeja': 'Shirt',
+    'coat': 'Coat',
+    'pants': 'Pants', 'celana panjang': 'Pants', 'trousers': 'Pants',
+    'jeans': 'Jeans',
+    'shorts': 'Shorts', 'celana pendek': 'Shorts',
+    'skirt': 'Skirt', 'rok': 'Skirt',
+    'leggings': 'Leggings',
+    'dress': 'Dress', 'gaun': 'Dress',
+    'jumpsuit': 'Jumpsuit',
+    'shoes': 'Shoes', 'sepatu': 'Shoes',
+    'sneakers': 'Sneakers',
+    'sandals': 'Sandals', 'sandal': 'Sandals',
+    'boots': 'Boots',
+    'heels': 'Heels', 'high heels': 'Heels',
+    'hat': 'Hat', 'topi': 'Hat',
+    'cap': 'Cap',
+    'beanie': 'Beanie',
+    'sunglasses': 'Sunglasses', 'kacamata hitam': 'Sunglasses',
+    'glasses': 'Glasses', 'kacamata': 'Glasses',
+    'earrings': 'Earrings', 'anting': 'Earrings',
+    'necklace': 'Necklace', 'kalung': 'Necklace',
+    'bracelet': 'Bracelet', 'gelang': 'Bracelet',
+    'watch': 'Watch', 'jam tangan': 'Watch',
+    'ring': 'Ring', 'cincin': 'Ring',
+    'backpack': 'Backpack', 'ransel': 'Backpack',
+    'handbag': 'Handbag', 'tas tangan': 'Handbag',
+    'tote bag': 'Tote Bag', 'totebag': 'Tote Bag',
+    'sling bag': 'Sling Bag', 'tas selempang': 'Sling Bag',
+    'waist bag': 'Waist Bag', 'belt bag': 'Waist Bag', 'tas pinggang': 'Waist Bag',
+    'bag': 'Bag', 'tas': 'Bag',
   };
 
-  const eyewearTypes = ['sunglasses', 'glasses', 'eyeglasses', 'spectacles', 'goggles'];
-  const upperBodyTypes = ['t-shirt', 'hoodie', 'jacket', 'sweater', 'polo', 'jersey', 'blazer', 'shirt', 'coat', 'top', 'blouse'];
-  const lowerBodyTypes = ['pants', 'jeans', 'shorts', 'skirt', 'leggings', 'trousers'];
-  const footwearTypes = ['shoes', 'sneakers', 'sandals', 'boots', 'heels', 'loafers', 'flats', 'slippers'];
-  const bagTypes = ['backpack', 'handbag', 'tote bag', 'sling bag', 'waist bag', 'belt bag', 'bag', 'purse', 'clutch'];
-  const headwearTypes = ['hat', 'cap', 'beanie', 'beret', 'helmet'];
-  const jewelryTypes = ['earrings', 'necklace', 'bracelet', 'watch', 'ring', 'anklet', 'brooch'];
-  const fullBodyTypes = ['dress', 'jumpsuit', 'romper', 'overalls'];
-
-  const matchesAny = (t, list) => list.some(k => t.includes(k));
-
-  if (matchesAny(type, eyewearTypes)) {
-    // Kacamata: null semua field pakaian
-    nullFields.appearance = ['collar', 'sleeves', 'length', 'heel_type', 'sole_type', 'closure_type'];
-    if (json.product) {
-      ['fit', 'pattern', 'season'].forEach(f => {
-        if (!json.product[f]) json.product[f] = null;
-      });
+  // Cari match terpanjang dulu (untuk "sling bag" sebelum "bag")
+  let normalizedType = json.type;
+  let matched = '';
+  for (const [key, val] of Object.entries(typeMap)) {
+    if (raw.includes(key) && key.length > matched.length) {
+      normalizedType = val;
+      matched = key;
     }
-    if (json.usage) json.usage.body_area = 'face';
-  } else if (matchesAny(type, upperBodyTypes)) {
-    nullFields.appearance = ['heel_type', 'sole_type'];
-    if (json.usage) json.usage.body_area = 'upper body';
-  } else if (matchesAny(type, lowerBodyTypes)) {
-    nullFields.appearance = ['collar', 'sleeves', 'heel_type', 'sole_type'];
-    if (json.usage) json.usage.body_area = 'lower body';
-  } else if (matchesAny(type, footwearTypes)) {
-    nullFields.appearance = ['collar', 'sleeves'];
-    if (json.product) ['fit', 'pattern'].forEach(f => { if (!json.product[f]) json.product[f] = null; });
-    if (json.usage) json.usage.body_area = 'feet';
-  } else if (matchesAny(type, bagTypes)) {
-    nullFields.appearance = ['collar', 'sleeves', 'length', 'heel_type', 'sole_type'];
-    if (json.product) ['fit', 'pattern', 'season'].forEach(f => { if (!json.product[f]) json.product[f] = null; });
-    if (json.usage) json.usage.body_area = 'carried';
-  } else if (matchesAny(type, headwearTypes)) {
-    nullFields.appearance = ['collar', 'sleeves', 'length', 'heel_type', 'sole_type', 'strap_type', 'closure_type'];
-    if (json.usage) json.usage.body_area = 'head';
-  } else if (matchesAny(type, jewelryTypes)) {
-    nullFields.appearance = ['collar', 'sleeves', 'length', 'heel_type', 'sole_type', 'closure_type'];
-  } else if (matchesAny(type, fullBodyTypes)) {
-    nullFields.appearance = ['heel_type', 'sole_type'];
-    if (json.usage) json.usage.body_area = 'full body';
   }
+  json.type = normalizedType;
 
-  // Terapkan null untuk field yang tidak relevan
-  if (json.appearance) {
-    nullFields.appearance.forEach(f => { json.appearance[f] = null; });
-  }
+  // Mapping body_area per kategori  JavaScript yang menentukan, bukan AI
+  const bodyAreaMap = {
+    'T-Shirt': 'upper body', 'Hoodie': 'upper body', 'Jacket': 'upper body',
+    'Sweater': 'upper body', 'Polo Shirt': 'upper body', 'Jersey': 'upper body',
+    'Blazer': 'upper body', 'Shirt': 'upper body', 'Coat': 'upper body',
+    'Pants': 'lower body', 'Jeans': 'lower body', 'Shorts': 'lower body',
+    'Skirt': 'lower body', 'Leggings': 'lower body',
+    'Dress': 'full body', 'Jumpsuit': 'full body',
+    'Shoes': 'feet', 'Sneakers': 'feet', 'Sandals': 'feet',
+    'Boots': 'feet', 'Heels': 'feet',
+    'Hat': 'head', 'Cap': 'head', 'Beanie': 'head',
+    'Sunglasses': 'face', 'Glasses': 'face',
+    'Earrings': 'ears', 'Necklace': 'neck', 'Bracelet': 'wrist',
+    'Watch': 'wrist', 'Ring': 'finger',
+    'Backpack': 'back', 'Handbag': 'hand', 'Tote Bag': 'hand',
+    'Sling Bag': 'shoulder', 'Waist Bag': 'waist', 'Bag': 'hand',
+  };
 
-  console.log('Sanitized JSON (type:', type, '):', json);
+  json.body_area = bodyAreaMap[json.type] || 'body';
+
+  console.log('Enriched JSON:', json);
   return json;
 }
 
-// ── STEP 2: Cloudflare Llama 3.2 11B Vision — Image Analysis ─────────────────
+//  STEP 2: Cloudflare Llama 3.2 11B Vision  Product Recognition 
 async function analyzeImageWithVision(imageDataUrl, gender, style) {
   const apiUrl = `/api/proxy?action=cloudflare-vision`;
 
-  const visionPrompt = `You are a fashion product identification specialist.
+  const visionPrompt = `You are a product recognition model.
 
-Your ONLY job is to identify and describe the SINGLE most prominent fashion product visible in this image.
+Analyze ONLY the most prominent fashion product in this image.
 
-The image was generated for a ${gender} model in a ${style} setting.
+Do NOT describe the person.
+Do NOT describe the background.
+Do NOT infer hidden information.
+If an attribute is not clearly visible, return null.
 
----
-
-STEP 1 — IDENTIFY THE PRODUCT TYPE FIRST.
-
-Look at the image carefully.
-
-Ask yourself: what is the ONE item the model is wearing or holding that is most prominently featured?
-
-Choose exactly ONE from this list:
-
-T-Shirt | Hoodie | Jacket | Sweater | Polo | Jersey | Blazer | Shirt | Coat |
-Pants | Jeans | Shorts | Skirt | Leggings | Dress | Jumpsuit |
-Shoes | Sneakers | Sandals | Boots | Heels |
-Hat | Cap | Beanie |
-Sunglasses | Glasses |
-Earrings | Necklace | Bracelet | Watch | Ring |
-Backpack | Handbag | Tote Bag | Sling Bag | Waist Bag | Belt Bag |
-Other
-
-Write this product type first. Do NOT change it later.
-
----
-
-STEP 2 — FILL ONLY FIELDS THAT APPLY TO THIS PRODUCT TYPE.
-
-If the product is Sunglasses or Glasses:
-- Fill: type, category, primary_color, secondary_colors, material, style, visible_brand, logo_visible
-- Fill: key_features, texture, strap_type
-- Fill: body_area = "face"
-- Set to null: collar, sleeves, length, heel_type, sole_type, closure_type, fit, season, wearing_method
-
-If the product is a shirt, hoodie, jacket, sweater, blazer, coat, or polo:
-- Fill: type, category, target_gender, primary_color, secondary_colors, pattern, material, fit, style, season
-- Fill: key_features, texture, closure_type, collar, sleeves, length
-- Fill: body_area = "upper body"
-- Set to null: heel_type, sole_type, strap_type
-
-If the product is pants, jeans, shorts, skirt, or leggings:
-- Fill: type, category, target_gender, primary_color, secondary_colors, pattern, material, fit, style, season
-- Fill: key_features, texture, closure_type, length
-- Fill: body_area = "lower body"
-- Set to null: collar, sleeves, heel_type, sole_type, strap_type
-
-If the product is shoes, sneakers, sandals, boots, or heels:
-- Fill: type, category, target_gender, primary_color, secondary_colors, material, style, season
-- Fill: key_features, texture, closure_type, heel_type, sole_type, strap_type
-- Fill: body_area = "feet"
-- Set to null: collar, sleeves, length, fit, pattern
-
-If the product is a bag (backpack, handbag, tote, sling, waist bag):
-- Fill: type, category, target_gender, primary_color, secondary_colors, material, style
-- Fill: key_features, texture, closure_type, strap_type
-- Fill: body_area = "carried"
-- Set to null: collar, sleeves, length, heel_type, sole_type, fit, pattern, season
-
-If the product is a hat, cap, or beanie:
-- Fill: type, category, target_gender, primary_color, material, style
-- Fill: key_features, texture
-- Fill: body_area = "head"
-- Set to null: collar, sleeves, length, heel_type, sole_type, strap_type, closure_type
-
-If the product is jewelry or a watch:
-- Fill: type, category, primary_color, material, style, visible_brand, logo_visible
-- Fill: key_features, texture
-- Fill: body_area accordingly
-- Set to null: collar, sleeves, length, heel_type, sole_type, strap_type, closure_type, fit
-
-For ALL other products: use your best judgment to fill relevant fields and set irrelevant ones to null.
-
----
-
-CRITICAL RULES:
-
-- The product type you identified in STEP 1 is the ONLY truth.
-- Never change the product type after identifying it.
-- Never fill fields with information that contradicts the product type.
-- If the product is sunglasses, NEVER write dress, skirt, sleeves, collar, or any clothing attribute.
-- If the product is a dress, NEVER write lens, frame, or any eyewear attribute.
-- Never invent information that is not visible.
-- Never infer material from color alone.
-- Never identify a brand unless a logo is clearly readable.
-- Output valid JSON only. No markdown. No explanation. No additional text.
-- If a field does not apply to this product, set it to null.
-- Confidence must be between 0.0 and 1.0.
-
----
-
-Return ONLY this JSON:
+Return ONLY valid JSON. No markdown. No explanation.
 
 {
-  "product": {
-    "type": "",
-    "category": "",
-    "target_gender": "",
-    "primary_color": "",
-    "secondary_colors": [],
-    "pattern": "",
-    "material": "",
-    "fit": "",
-    "style": "",
-    "season": "",
-    "visible_brand": "",
-    "logo_visible": null,
-    "condition": "new"
-  },
-  "appearance": {
-    "key_features": [],
-    "texture": "",
-    "closure_type": "",
-    "collar": "",
-    "sleeves": "",
-    "length": "",
-    "heel_type": "",
-    "sole_type": "",
-    "strap_type": ""
-  },
-  "usage": {
-    "wearing_method": "",
-    "body_area": ""
-  },
-  "photo": {
-    "camera_angle": "",
-    "shot_type": "",
-    "lighting": "",
-    "background": "",
-    "overall_aesthetic": ""
-  },
+  "type": "",
+  "category": "",
+  "primary_color": "",
+  "secondary_colors": [],
+  "material": "",
+  "style": "",
+  "key_features": [],
   "confidence": 0.0
 }`;
 
@@ -869,13 +772,12 @@ Return ONLY this JSON:
   const result = await fetchWithRetry(apiUrl, payload, (r) => {
     const text = r?.analysis || '';
     if (!text) return null;
-    // Ekstrak JSON dari respons teks
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
         return JSON.parse(jsonMatch[0]);
       } catch (_) {
-        return text; // return raw text jika parse gagal
+        return text;
       }
     }
     return text;
@@ -884,7 +786,7 @@ Return ONLY this JSON:
   return result;
 }
 
-// ── STEP 3: Groq — Caption Generation (receives JSON from Vision) ────
+//  STEP 3: Groq  Caption Generation (menerima JSON bersih dari enrichment) 
 async function generateCaptionAi(productJson, gender, style) {
   const apiUrl = `/api/proxy?action=groq-caption`;
 
@@ -892,342 +794,41 @@ async function generateCaptionAi(productJson, gender, style) {
     ? (typeof productJson === 'object' ? JSON.stringify(productJson, null, 2) : String(productJson))
     : null;
 
-  const promptText = `You are a Senior Marketing Analyst, Brand Strategist, Consumer Psychologist, Copywriter, and Social Media Specialist with over 15 years of experience helping fashion and lifestyle brands increase engagement and sales through Instagram content.
-
-Your job is not to describe a product.
-
-Your job is to persuade people to want the product.
-
-You will receive structured product information extracted from an AI vision model.
-
-Treat the JSON as the ONLY source of truth.
-
-Never invent any product details.
-
-Never mention attributes that do not exist in the JSON.
-
-Ignore every field that is null or empty.
-
-------------------------------------------------------------
-
-INTERNAL MARKETING WORKFLOW
-
-------------------------------------------------------------
-
-Before writing the caption, silently perform the following analysis.
-
-Do NOT output this analysis.
-
-STEP 1
-
-Understand the product.
-
-Identify:
-
-- product category
-
-- main selling points
-
-- strongest visual appeal
-
-- style
-
-- color
-
-- material
-
-- design
-
-STEP 2
-
-Identify the target customer.
-
-Think about:
-
-- age
-
-- gender
-
-- fashion style
-
-- personality
-
-- lifestyle
-
-Use this only to determine writing style.
-
-STEP 3
-
-Choose ONE emotional marketing angle.
-
-Possible angles:
-
-- Confidence
-
-- Comfort
-
-- Minimalism
-
-- Luxury
-
-- Elegance
-
-- Street Style
-
-- Everyday Essential
-
-- Active Lifestyle
-
-- Premium Quality
-
-- Timeless Style
-
-- Modern Fashion
-
-- Self Expression
-
-Only choose one.
-
-Build the caption around that angle.
-
-STEP 4
-
-Create a scroll-stopping Hook.
-
-The first sentence must make users stop scrolling.
-
-Avoid generic openings.
-
-STEP 5
-
-Use storytelling.
-
-Do NOT list specifications.
-
-Instead, naturally describe how the product fits into the customer's lifestyle.
-
-Help readers imagine themselves using or wearing it.
-
-STEP 6
-
-Naturally mention the product's strongest characteristics.
-
-Blend them into the story.
-
-Never repeat attributes.
-
-STEP 7
-
-Finish with a natural Call-to-Action.
-
-Examples:
-
-Discover your next favorite look.
-
-Complete your wardrobe today.
-
-Upgrade your everyday style.
-
-Find your perfect match.
-
-Shop now.
-
-STEP 8
-
-Generate 8–12 relevant hashtags.
-
-------------------------------------------------------------
-
-STRICT RULES
-
-------------------------------------------------------------
-
-The JSON is the ONLY truth.
-
-Never invent:
-
-- colors
-
-- patterns
-
-- materials
-
-- sleeves
-
-- dresses
-
-- skirts
-
-- shoes
-
-- accessories
-
-- logos
-
-- textures
-
-If the product type is Sunglasses,
-
-never mention dresses, shirts, pants, shoes or bags.
-
-If the product type is Shoes,
-
-never mention shirts, dresses, jackets or hats.
-
-If the product type is Pants,
-
-never mention shirts or shoes unless explicitly provided.
-
-If the product type is Hat,
-
-never mention sunglasses.
-
-If the product type is Bag,
-
-never mention clothing.
-
-Every sentence must be supported by the JSON.
-
-If a sentence contains information outside the JSON,
-
-rewrite it internally before responding.
-
-Never hallucinate.
-
-Never assume.
-
-Never guess.
-
-------------------------------------------------------------
-
-WRITING STYLE
-
-------------------------------------------------------------
-
-Professional.
-
-Natural.
-
-Human.
-
-Modern.
-
-Persuasive.
-
-Premium.
-
-Friendly.
-
-Authentic.
-
-Avoid AI-sounding phrases.
-
-Avoid repetitive adjectives.
-
-Avoid repetitive sentence structure.
-
-Keep the caption under 50 words.
-
-Use 2–5 relevant emojis naturally.
-
-------------------------------------------------------------
-
-OUTPUT FORMAT
-
-------------------------------------------------------------
-
-Write the caption in this exact flow — no labels, no headers:
-
-Line 1: Hook. One punchy sentence. Make it hit.
-Line 2–3: Body. 2 short sentences. Lifestyle feeling, not product specs.
-Line 4: CTA. One line. Make them want to act.
-Line 5: Hashtags. 8–12 on one line.
-
-------------------------------------------------------------
-
-CAPTION EXAMPLES
-
-------------------------------------------------------------
-
-Example — Sunglasses:
-
-You don't wear these. You arrive in them. 🕶️
-One frame that shifts the whole vibe — sharp, effortless, unmistakably you.
-Don't just look good. Look intentional.
-#sunglasses #eyewear #ootd #sunnies #streetstyle #fashionforward #stylecheck #vibes
-
----
-
-Example — Sneakers:
-
-Some shoes you wear. These ones you flex. �
-Built for the streets, designed for the ones who move with purpose and dress like they mean it.
-Lace up and own the room.
-#sneakers #kicks #streetwear #sneakerculture #freshkicks #outfitcheck #dailyfit #hypebeast
-
----
-
-Example — Jacket:
-
-The jacket that makes strangers stop and ask. 🧥
-Tough on the outside, built for the energy you bring every single day — cold weather just became your best accessory.
-Add to cart before someone else does.
-#jacket #outerwear #streetstyle #layering #fallfit #mensfashion #ootd #drip
-
----
-
-Example — Bag:
-
-The bag that carries your whole personality. 👜
-Clean structure, confident presence — it goes with everything because it was made for someone who has taste.
-Grab yours while it lasts.
-#bag #handbag #fashionbag #ootd #accessories #styleoftheday #itbag #womensfashion
-
----
-
-Example — T-Shirt:
-
-Basic? Never heard of it. 👕
-This tee hits different — the cut, the color, the way it just works with literally everything in your wardrobe.
-Stock up. You'll want more than one.
-#tshirt #casualwear #streetstyle #ootd #menswear #dailyfit #essentials #minimalistfashion
-
----
-
-Example — Watch:
-
-Time doesn't wait — but it looks good on your wrist. ⌚
-Every glance down is a reminder that the details matter. Classic, quiet, and impossible to ignore.
-Wear what says everything without saying a word.
-#watch #timepiece #wristwear #luxurystyle #accessories #ootd #mensstyle #watchfam
-
-------------------------------------------------------------
-
-RULES BEFORE WRITING
-
-------------------------------------------------------------
-
-Read the JSON first.
-Check product.type.
-Only write about what is in the JSON.
-If product.type is sunglasses — no shirts, no pants, no shoes.
-If product.type is sneakers — no jackets, no bags, no hats.
-Match the tone to the product and the target gender.
-Keep it under 50 words total (excluding hashtags).
-2–5 emojis max. Place them naturally, not at the end of every line.
-No AI phrases. No "elevate your". No "game-changer". No "timeless piece".
-Sound like a real person who actually loves fashion.
-
-------------------------------------------------------------
-
-INPUT
-
-Target gender: ${gender}
-Background style: ${style}
-
-${productDescription || `Fashion product for ${gender} model in a ${style} setting.`}`;
-
-  // Groq pakai format OpenAI-compatible messages[]
+  const promptText = `Kamu adalah copywriter Instagram fashion Indonesia yang menulis caption singkat, gaul, dan menjual.
+
+INPUT JSON:
+${productDescription || `Produk fashion untuk ${gender} dengan latar ${style}.`}
+
+ATURAN:
+- Gunakan HANYA informasi dari JSON di atas.
+- Jangan mengarang warna, bahan, atau detail yang tidak ada di JSON.
+- Jangan sebut kategori produk lain selain yang ada di JSON.
+- Tulis dalam Bahasa Indonesia yang santai dan natural  seperti teman ngobrol, bukan sales pitch.
+- Jangan gunakan kata klise: "berkualitas tinggi", "terbaik", "tak lekang waktu", "elevate your look".
+- Maksimal 60 kata (tidak termasuk hashtag).
+- Gunakan 24 emoji yang natural.
+
+FORMAT OUTPUT (tanpa label, langsung isinya):
+Baris 1: Hook  satu kalimat yang bikin scroll berhenti.
+Baris 23: Cerita singkat  gaya hidup, bukan spesifikasi.
+Baris 4: CTA  satu baris yang bikin mereka action.
+Baris 5: 812 hashtag relevan dalam satu baris.
+
+CONTOH untuk Kacamata Hitam:
+Bukan sekadar kacamata  ini statement. 
+Clean, confident, dan cocok ke mana aja kamu pergi.
+Gaskeun sebelum kehabisan, cek link bio!
+#kacamata #sunglasses #ootd #streetstyleindo #fashionpria #stylecheck #accessoriesootd #outfitcheck
+
+CONTOH untuk Sneakers:
+Sepatu ini bukan buat jalan  buat flex. 
+Bold dan kece, pas buat anak yang gerak terus tapi tetep stylish.
+DM sekarang buat info ukuran dan harga!
+#sneakers #sepatugaul #streetwear #ootdindo #fashionpria #kicksoftheday #hypebeastindo #outfitgoals
+
+OUTPUT HANYA caption-nya saja. Tidak perlu label, tidak perlu penjelasan.`;
+
+ // Groq pakai format OpenAI-compatible messages[]
   const payload = {
     messages: [
       {
@@ -1242,7 +843,7 @@ ${productDescription || `Fashion product for ${gender} model in a ${style} setti
   }, 1);
 }
 
-// ── Helper: Ekstrak pesan error yang human-readable ──────────────────────────
+//  Helper: Ekstrak pesan error yang human-readable 
 function extractErrorMessage(err) {
   if (!err) return 'Terjadi kesalahan tidak dikenal.';
   const msg = err.message || String(err);
@@ -1254,10 +855,10 @@ function extractErrorMessage(err) {
     const detail = statusMatch[2] ? statusMatch[2].replace(/^\s*[-:]+\s*/, '') : '';
     const codeMap = {
       '400': 'Request tidak valid (400)',
-      '401': 'Autentikasi gagal — periksa API token (401)',
-      '403': 'Akses ditolak — periksa izin API token (403)',
+      '401': 'Autentikasi gagal  periksa API token (401)',
+      '403': 'Akses ditolak  periksa izin API token (403)',
       '404': 'Model tidak ditemukan (404)',
-      '429': 'Kuota habis / Rate limit (429) — coba lagi sebentar',
+      '429': 'Kuota habis / Rate limit (429)  coba lagi sebentar',
       '500': 'Server error internal (500)',
       '503': 'Server tidak tersedia sementara (503)'
     };
