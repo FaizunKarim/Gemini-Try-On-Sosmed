@@ -1,4 +1,4 @@
-﻿// Single Image State
+// Single Image State
 // Format: null | { type: 'base64' | 'url', value: string, name?: string }
 let uploadedImage = null;
 
@@ -759,12 +759,8 @@ function extractFirstValidJson(text) {
   return null;
 }
 
-// ── STEP 2: Cloudflare Llama 3.2 11B Vision — Two-call pipeline ──────────────
-// Call 2a: Classifier — satu kata product type
-// Call 2b: Extractor — atribut spesifik berdasarkan type yang sudah diketahui
+// ── STEP 2: Cloudflare Llama 3.2 11B Vision — Single-call pipeline ──────────────
 async function analyzeImageWithVision(imageDataUrl, gender, style) {
-
-  // Siapkan payload gambar (dipakai di kedua call)
   const imagePayload = {};
   if (imageDataUrl.startsWith('data:')) {
     imagePayload.image_b64 = imageDataUrl.includes(',') ? imageDataUrl.split(',')[1] : imageDataUrl;
@@ -772,75 +768,31 @@ async function analyzeImageWithVision(imageDataUrl, gender, style) {
     imagePayload.image_url = imageDataUrl;
   }
 
-  // ── Call 2a: Classifier — identifikasi product type saja ─────────────────
-  let productType = 'Other';
-  try {
-    const classifyResult = await fetchWithRetry(
-      `/api/proxy?action=cloudflare-vision-classify`,
-      imagePayload,
-      (r) => {
-        console.log("SERVER RESPONSE:", r);
-        
-        const allowed = [
-          "T-Shirt","Hoodie","Jacket","Sweater","Polo","Blazer","Shirt",
-          "Coat","Pants","Jeans","Shorts","Skirt","Leggings","Dress",
-          "Jumpsuit","Shoes","Sneakers","Sandals","Boots","Heels",
-          "Hat","Cap","Beanie","Sunglasses","Glasses","Earrings",
-          "Necklace","Bracelet","Watch","Ring","Backpack",
-          "Handbag","Tote Bag","Sling Bag","Waist Bag","Bag","Other"
-        ];
+  const visionPrompt = `You are a product recognition AI model.
 
-        const raw = (r?.product_type || "").trim();
+Identify the SINGLE fashion product in this image and analyze its key attributes.
 
-        console.log("RAW PRODUCT TYPE:", raw);
+Choose the "type" field EXACTLY from this list:
+T-Shirt, Hoodie, Jacket, Sweater, Polo, Blazer, Shirt, Coat, Pants, Jeans, Shorts, Skirt, Leggings, Dress, Jumpsuit, Shoes, Sneakers, Sandals, Boots, Heels, Hat, Cap, Beanie, Sunglasses, Glasses, Earrings, Necklace, Bracelet, Watch, Ring, Backpack, Handbag, Tote Bag, Sling Bag, Waist Bag, Bag, Other
 
-        const found = allowed.find(item =>
-          raw.toLowerCase().includes(item.toLowerCase())
-        );
-
-        console.log("MATCHED PRODUCT TYPE:", found);
-
-        return found || "Other";
-      }
-    );
-    if (classifyResult) productType = classifyResult;
-    console.log("Classifier Result:", productType);
-  } catch (err) {
-    console.warn('Classifier failed, using fallback "Other":', err.message);
-  }
-
-  // ── Call 2b: Extractor — atribut berdasarkan type yang sudah diketahui ───
-  const extractPrompt = `You are a product recognition model.
-
-The product in this image is: ${productType}
-
-Analyze ONLY this ${productType} in the image.
-
-There is exactly ONE product. Return EXACTLY ONE JSON object.
-Do NOT return multiple JSON objects.
-Do NOT return examples.
-Do NOT return a list.
-Do NOT describe the person or background.
-If an attribute is not clearly visible, return null.
-
-Return ONLY this single JSON object. No markdown. No explanation. No extra text.
+Return ONLY a single valid JSON object. No markdown code blocks. No explanation. No extra text.
 
 {
-  "type": "${productType}",
-  "category": "",
+  "type": "exact value from the list above",
+  "category": "apparel or footwear or accessory or bag",
   "primary_color": "",
   "secondary_colors": [],
   "material": "",
   "style": "",
   "key_features": [],
-  "confidence": 0.0
+  "confidence": 0.9
 }`;
 
-  const extractPayload = { prompt: extractPrompt, ...imagePayload };
+  const payload = { prompt: visionPrompt, ...imagePayload };
 
   const result = await fetchWithRetry(
     `/api/proxy?action=cloudflare-vision`,
-    extractPayload,
+    payload,
     (r) => {
       const text = r?.analysis || '';
       if (!text) return null;
