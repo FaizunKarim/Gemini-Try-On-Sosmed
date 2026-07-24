@@ -326,8 +326,11 @@ async function generateAllMockups() {
   }
 
   // ── STEP 2: Image Analysis (Cloudflare Llama 3.2 Vision) ─────────────────
+  // Analisis gambar INPUT dari user (bukan generated image) agar lebih akurat
   let productJson = null;
-  const imageForAnalysis = tryOnImg || null;
+  const imageForAnalysis = uploadedImage
+    ? (uploadedImage.type === 'base64' ? uploadedImage.value : uploadedImage.value)
+    : null;
 
   if (imageForAnalysis) {
     try {
@@ -1133,17 +1136,87 @@ OUTPUT FORMAT
 
 ------------------------------------------------------------
 
-Output ONLY the Instagram caption.
+Write the caption in this exact flow — no labels, no headers:
 
-Do NOT output analysis.
+Line 1: Hook. One punchy sentence. Make it hit.
+Line 2–3: Body. 2 short sentences. Lifestyle feeling, not product specs.
+Line 4: CTA. One line. Make them want to act.
+Line 5: Hashtags. 8–12 on one line.
 
-Do NOT output JSON.
+------------------------------------------------------------
 
-Do NOT output Markdown.
+CAPTION EXAMPLES
 
-Do NOT output explanations.
+------------------------------------------------------------
 
-Do NOT output section titles.
+Example — Sunglasses:
+
+You don't wear these. You arrive in them. 🕶️
+One frame that shifts the whole vibe — sharp, effortless, unmistakably you.
+Don't just look good. Look intentional.
+#sunglasses #eyewear #ootd #sunnies #streetstyle #fashionforward #stylecheck #vibes
+
+---
+
+Example — Sneakers:
+
+Some shoes you wear. These ones you flex. �
+Built for the streets, designed for the ones who move with purpose and dress like they mean it.
+Lace up and own the room.
+#sneakers #kicks #streetwear #sneakerculture #freshkicks #outfitcheck #dailyfit #hypebeast
+
+---
+
+Example — Jacket:
+
+The jacket that makes strangers stop and ask. 🧥
+Tough on the outside, built for the energy you bring every single day — cold weather just became your best accessory.
+Add to cart before someone else does.
+#jacket #outerwear #streetstyle #layering #fallfit #mensfashion #ootd #drip
+
+---
+
+Example — Bag:
+
+The bag that carries your whole personality. 👜
+Clean structure, confident presence — it goes with everything because it was made for someone who has taste.
+Grab yours while it lasts.
+#bag #handbag #fashionbag #ootd #accessories #styleoftheday #itbag #womensfashion
+
+---
+
+Example — T-Shirt:
+
+Basic? Never heard of it. 👕
+This tee hits different — the cut, the color, the way it just works with literally everything in your wardrobe.
+Stock up. You'll want more than one.
+#tshirt #casualwear #streetstyle #ootd #menswear #dailyfit #essentials #minimalistfashion
+
+---
+
+Example — Watch:
+
+Time doesn't wait — but it looks good on your wrist. ⌚
+Every glance down is a reminder that the details matter. Classic, quiet, and impossible to ignore.
+Wear what says everything without saying a word.
+#watch #timepiece #wristwear #luxurystyle #accessories #ootd #mensstyle #watchfam
+
+------------------------------------------------------------
+
+RULES BEFORE WRITING
+
+------------------------------------------------------------
+
+Read the JSON first.
+Check product.type.
+Only write about what is in the JSON.
+If product.type is sunglasses — no shirts, no pants, no shoes.
+If product.type is sneakers — no jackets, no bags, no hats.
+Match the tone to the product and the target gender.
+Keep it under 50 words total (excluding hashtags).
+2–5 emojis max. Place them naturally, not at the end of every line.
+No AI phrases. No "elevate your". No "game-changer". No "timeless piece".
+Sound like a real person who actually loves fashion.
 
 ------------------------------------------------------------
 
