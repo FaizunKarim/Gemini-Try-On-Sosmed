@@ -779,14 +779,30 @@ async function analyzeImageWithVision(imageDataUrl, gender, style) {
       `/api/proxy?action=cloudflare-vision-classify`,
       imagePayload,
       (r) => {
-        const raw = (r?.product_type || '').trim();
-        // Ambil satu kata/frasa pertama yang valid — buang kalimat panjang
-        const firstWord = raw.split('\n')[0].split('.')[0].trim();
-        return firstWord || null;
+        const allowed = [
+          "T-Shirt","Hoodie","Jacket","Sweater","Polo","Blazer","Shirt",
+          "Coat","Pants","Jeans","Shorts","Skirt","Leggings","Dress",
+          "Jumpsuit","Shoes","Sneakers","Sandals","Boots","Heels",
+          "Hat","Cap","Beanie","Sunglasses","Glasses","Earrings",
+          "Necklace","Bracelet","Watch","Ring","Backpack",
+          "Handbag","Tote Bag","Sling Bag","Waist Bag","Bag","Other"
+        ];
+
+        const raw = (r?.product_type || "").trim();
+
+        console.log("RAW PRODUCT TYPE:", raw);
+
+        const found = allowed.find(item =>
+          raw.toLowerCase().includes(item.toLowerCase())
+        );
+
+        console.log("MATCHED PRODUCT TYPE:", found);
+
+        return found || "Other";
       }
     );
     if (classifyResult) productType = classifyResult;
-    console.log("Classifier RAW:", JSON.stringify(classifierResult));
+    console.log("Classifier Result:", productType);
   } catch (err) {
     console.warn('Classifier failed, using fallback "Other":', err.message);
   }

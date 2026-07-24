@@ -130,12 +130,12 @@ module.exports = async function handler(req, res) {
 
     const cleanB64 = image_b64.includes(',') ? image_b64.split(',')[1] : image_b64;
 
-    const classifyPrompt = `Look at this image. Identify the single most prominent fashion product being worn or carried.
+    const classifyPrompt = `Look at this image. Identify the single main fashion product in this image.
 
 Output ONLY one word from this list:
 T-Shirt, Hoodie, Jacket, Sweater, Polo, Blazer, Shirt, Coat, Pants, Jeans, Shorts, Skirt, Leggings, Dress, Jumpsuit, Shoes, Sneakers, Sandals, Boots, Heels, Hat, Cap, Beanie, Sunglasses, Glasses, Earrings, Necklace, Bracelet, Watch, Ring, Backpack, Handbag, Tote Bag, Sling Bag, Waist Bag, Bag, Other
 
-Do NOT output a sentence. Do NOT explain. Output only the single product type word.`;
+Return EXACTLY one value from the list above. Do NOT output a sentence. Do NOT explain. Do not use punctuation. If none match, return "Other".`;
 
     const classifyBody = {
       prompt: classifyPrompt,
