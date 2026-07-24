@@ -786,7 +786,7 @@ async function analyzeImageWithVision(imageDataUrl, gender, style) {
       }
     );
     if (classifyResult) productType = classifyResult;
-    console.log('Classifier result:', productType);
+    console.log("Classifier RAW:", JSON.stringify(classifierResult));
   } catch (err) {
     console.warn('Classifier failed, using fallback "Other":', err.message);
   }
