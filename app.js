@@ -327,12 +327,13 @@ async function generateAllMockups() {
 
   // ── STEP 2: Image Analysis (Cloudflare Llama 3.2 Vision) ─────────────────
   let productJson = null;
-  const imageForAnalysis = tryOnImg || null; // Analisis generated image, atau skip jika gagal
+  const imageForAnalysis = tryOnImg || null;
 
   if (imageForAnalysis) {
     try {
       showToast("Step 2/3: Menganalisis produk (Llama Vision)...", "info", "Analyzing");
       productJson = await analyzeImageWithVision(imageForAnalysis, gender, studioStyle);
+      productJson = validateAndSanitizeProductJson(productJson);
       console.log('Vision Analysis Result:', productJson);
       showToast("Analisis visual selesai!", "info", "Step 2 ✓");
     } catch (visionErr) {
@@ -648,47 +649,168 @@ Output a single ultra-realistic commercial fashion image.`;
   });
 }
 
+// ── Validation Layer: Sanitize JSON dari Llama sebelum dikirim ke Groq ────────
+function validateAndSanitizeProductJson(json) {
+  if (!json || typeof json !== 'object') return json;
+
+  const type = (json?.product?.type || '').toLowerCase();
+  if (!type) return json;
+
+  // Definisi field mana yang TIDAK relevan per kategori produk
+  const nullFields = {
+    appearance: [],
+    usage: []
+  };
+
+  const eyewearTypes = ['sunglasses', 'glasses', 'eyeglasses', 'spectacles', 'goggles'];
+  const upperBodyTypes = ['t-shirt', 'hoodie', 'jacket', 'sweater', 'polo', 'jersey', 'blazer', 'shirt', 'coat', 'top', 'blouse'];
+  const lowerBodyTypes = ['pants', 'jeans', 'shorts', 'skirt', 'leggings', 'trousers'];
+  const footwearTypes = ['shoes', 'sneakers', 'sandals', 'boots', 'heels', 'loafers', 'flats', 'slippers'];
+  const bagTypes = ['backpack', 'handbag', 'tote bag', 'sling bag', 'waist bag', 'belt bag', 'bag', 'purse', 'clutch'];
+  const headwearTypes = ['hat', 'cap', 'beanie', 'beret', 'helmet'];
+  const jewelryTypes = ['earrings', 'necklace', 'bracelet', 'watch', 'ring', 'anklet', 'brooch'];
+  const fullBodyTypes = ['dress', 'jumpsuit', 'romper', 'overalls'];
+
+  const matchesAny = (t, list) => list.some(k => t.includes(k));
+
+  if (matchesAny(type, eyewearTypes)) {
+    // Kacamata: null semua field pakaian
+    nullFields.appearance = ['collar', 'sleeves', 'length', 'heel_type', 'sole_type', 'closure_type'];
+    if (json.product) {
+      ['fit', 'pattern', 'season'].forEach(f => {
+        if (!json.product[f]) json.product[f] = null;
+      });
+    }
+    if (json.usage) json.usage.body_area = 'face';
+  } else if (matchesAny(type, upperBodyTypes)) {
+    nullFields.appearance = ['heel_type', 'sole_type'];
+    if (json.usage) json.usage.body_area = 'upper body';
+  } else if (matchesAny(type, lowerBodyTypes)) {
+    nullFields.appearance = ['collar', 'sleeves', 'heel_type', 'sole_type'];
+    if (json.usage) json.usage.body_area = 'lower body';
+  } else if (matchesAny(type, footwearTypes)) {
+    nullFields.appearance = ['collar', 'sleeves'];
+    if (json.product) ['fit', 'pattern'].forEach(f => { if (!json.product[f]) json.product[f] = null; });
+    if (json.usage) json.usage.body_area = 'feet';
+  } else if (matchesAny(type, bagTypes)) {
+    nullFields.appearance = ['collar', 'sleeves', 'length', 'heel_type', 'sole_type'];
+    if (json.product) ['fit', 'pattern', 'season'].forEach(f => { if (!json.product[f]) json.product[f] = null; });
+    if (json.usage) json.usage.body_area = 'carried';
+  } else if (matchesAny(type, headwearTypes)) {
+    nullFields.appearance = ['collar', 'sleeves', 'length', 'heel_type', 'sole_type', 'strap_type', 'closure_type'];
+    if (json.usage) json.usage.body_area = 'head';
+  } else if (matchesAny(type, jewelryTypes)) {
+    nullFields.appearance = ['collar', 'sleeves', 'length', 'heel_type', 'sole_type', 'closure_type'];
+  } else if (matchesAny(type, fullBodyTypes)) {
+    nullFields.appearance = ['heel_type', 'sole_type'];
+    if (json.usage) json.usage.body_area = 'full body';
+  }
+
+  // Terapkan null untuk field yang tidak relevan
+  if (json.appearance) {
+    nullFields.appearance.forEach(f => { json.appearance[f] = null; });
+  }
+
+  console.log('Sanitized JSON (type:', type, '):', json);
+  return json;
+}
+
 // ── STEP 2: Cloudflare Llama 3.2 11B Vision — Image Analysis ─────────────────
 async function analyzeImageWithVision(imageDataUrl, gender, style) {
   const apiUrl = `/api/proxy?action=cloudflare-vision`;
 
-  const visionPrompt = `You are an expert fashion analyst and visual merchandising specialist.
+  const visionPrompt = `You are a fashion product identification specialist.
 
-Your task is to analyze a generated fashion image and extract only factual visual information.
-
-The image always contains one primary fashion product that is intentionally highlighted.
+Your ONLY job is to identify and describe the SINGLE most prominent fashion product visible in this image.
 
 The image was generated for a ${gender} model in a ${style} setting.
 
-Focus on describing ONLY the main product being worn or used.
+---
 
-Do not create marketing text.
+STEP 1 — IDENTIFY THE PRODUCT TYPE FIRST.
 
-Do not create captions.
+Look at the image carefully.
 
-Do not guess hidden information.
+Ask yourself: what is the ONE item the model is wearing or holding that is most prominently featured?
 
-Do not hallucinate.
+Choose exactly ONE from this list:
 
-If something cannot be confirmed visually, return null.
+T-Shirt | Hoodie | Jacket | Sweater | Polo | Jersey | Blazer | Shirt | Coat |
+Pants | Jeans | Shorts | Skirt | Leggings | Dress | Jumpsuit |
+Shoes | Sneakers | Sandals | Boots | Heels |
+Hat | Cap | Beanie |
+Sunglasses | Glasses |
+Earrings | Necklace | Bracelet | Watch | Ring |
+Backpack | Handbag | Tote Bag | Sling Bag | Waist Bag | Belt Bag |
+Other
 
-Always prioritize the product over the human model.
-
-The human model exists only to showcase the product.
-
-Never describe unnecessary facial features unless they are relevant to the product.
-
-Return ONLY valid JSON.
+Write this product type first. Do NOT change it later.
 
 ---
 
-Analyze this fashion image.
+STEP 2 — FILL ONLY FIELDS THAT APPLY TO THIS PRODUCT TYPE.
 
-Identify the main product being showcased.
+If the product is Sunglasses or Glasses:
+- Fill: type, category, primary_color, secondary_colors, material, style, visible_brand, logo_visible
+- Fill: key_features, texture, strap_type
+- Fill: body_area = "face"
+- Set to null: collar, sleeves, length, heel_type, sole_type, closure_type, fit, season, wearing_method
 
-Ignore irrelevant visual details.
+If the product is a shirt, hoodie, jacket, sweater, blazer, coat, or polo:
+- Fill: type, category, target_gender, primary_color, secondary_colors, pattern, material, fit, style, season
+- Fill: key_features, texture, closure_type, collar, sleeves, length
+- Fill: body_area = "upper body"
+- Set to null: heel_type, sole_type, strap_type
 
-Describe only what is visually observable.
+If the product is pants, jeans, shorts, skirt, or leggings:
+- Fill: type, category, target_gender, primary_color, secondary_colors, pattern, material, fit, style, season
+- Fill: key_features, texture, closure_type, length
+- Fill: body_area = "lower body"
+- Set to null: collar, sleeves, heel_type, sole_type, strap_type
+
+If the product is shoes, sneakers, sandals, boots, or heels:
+- Fill: type, category, target_gender, primary_color, secondary_colors, material, style, season
+- Fill: key_features, texture, closure_type, heel_type, sole_type, strap_type
+- Fill: body_area = "feet"
+- Set to null: collar, sleeves, length, fit, pattern
+
+If the product is a bag (backpack, handbag, tote, sling, waist bag):
+- Fill: type, category, target_gender, primary_color, secondary_colors, material, style
+- Fill: key_features, texture, closure_type, strap_type
+- Fill: body_area = "carried"
+- Set to null: collar, sleeves, length, heel_type, sole_type, fit, pattern, season
+
+If the product is a hat, cap, or beanie:
+- Fill: type, category, target_gender, primary_color, material, style
+- Fill: key_features, texture
+- Fill: body_area = "head"
+- Set to null: collar, sleeves, length, heel_type, sole_type, strap_type, closure_type
+
+If the product is jewelry or a watch:
+- Fill: type, category, primary_color, material, style, visible_brand, logo_visible
+- Fill: key_features, texture
+- Fill: body_area accordingly
+- Set to null: collar, sleeves, length, heel_type, sole_type, strap_type, closure_type, fit
+
+For ALL other products: use your best judgment to fill relevant fields and set irrelevant ones to null.
+
+---
+
+CRITICAL RULES:
+
+- The product type you identified in STEP 1 is the ONLY truth.
+- Never change the product type after identifying it.
+- Never fill fields with information that contradicts the product type.
+- If the product is sunglasses, NEVER write dress, skirt, sleeves, collar, or any clothing attribute.
+- If the product is a dress, NEVER write lens, frame, or any eyewear attribute.
+- Never invent information that is not visible.
+- Never infer material from color alone.
+- Never identify a brand unless a logo is clearly readable.
+- Output valid JSON only. No markdown. No explanation. No additional text.
+- If a field does not apply to this product, set it to null.
+- Confidence must be between 0.0 and 1.0.
+
+---
 
 Return ONLY this JSON:
 
@@ -731,24 +853,7 @@ Return ONLY this JSON:
     "overall_aesthetic": ""
   },
   "confidence": 0.0
-}
-
-Rules:
-- Output valid JSON only.
-- No markdown.
-- No explanation.
-- No additional text.
-- Do not invent information.
-- If a value is unknown, return null.
-- Never identify a brand unless a logo is clearly readable.
-- Never infer material from color alone.
-- Never infer gender unless visually obvious.
-- Focus on the main product.
-- Ignore the identity of the model.
-- Ignore facial expression.
-- Ignore hair unless it affects the product.
-- Ignore background objects.
-- Confidence must be between 0.0 and 1.0.`;
+}`;
 
   const payload = { prompt: visionPrompt };
 
@@ -784,353 +889,265 @@ async function generateCaptionAi(productJson, gender, style) {
     ? (typeof productJson === 'object' ? JSON.stringify(productJson, null, 2) : String(productJson))
     : null;
 
-  const promptText = `You are a Senior Fashion Marketing Strategist, Brand Copywriter, Consumer Psychologist, and Social Media Manager with years of experience creating high-performing Instagram content for global fashion and lifestyle brands.
+  const promptText = `You are a Senior Marketing Analyst, Brand Strategist, Consumer Psychologist, Copywriter, and Social Media Specialist with over 15 years of experience helping fashion and lifestyle brands increase engagement and sales through Instagram content.
 
-Your responsibility is NOT simply to rewrite product information.
+Your job is not to describe a product.
 
-Your responsibility is to strategically transform structured product information into an Instagram caption that attracts attention, creates desire, builds emotional connection, and encourages purchase.
+Your job is to persuade people to want the product.
 
-The structured product information you receive is generated from visual analysis.
+You will receive structured product information extracted from an AI vision model.
 
-Treat the provided information as the ONLY source of truth.
+Treat the JSON as the ONLY source of truth.
 
-Never invent product specifications.
+Never invent any product details.
 
-Never exaggerate product capabilities.
-
-Never mention information that does not exist in the provided data.
+Never mention attributes that do not exist in the JSON.
 
 Ignore every field that is null or empty.
 
---------------------------------------------------
+------------------------------------------------------------
 
-YOUR INTERNAL THINKING PROCESS
+INTERNAL MARKETING WORKFLOW
 
---------------------------------------------------
+------------------------------------------------------------
 
-Before writing the caption, silently perform the following marketing analysis.
+Before writing the caption, silently perform the following analysis.
 
 Do NOT output this analysis.
 
-Only use it internally.
+STEP 1
 
-STEP 1 — PRODUCT ANALYSIS
+Understand the product.
 
 Identify:
 
-• What is the main product?
+- product category
 
-• What visual elements immediately attract attention?
+- main selling points
 
-• What makes this product aesthetically appealing?
+- strongest visual appeal
 
-• What style category does it belong to?
+- style
 
-• Which features deserve the most emphasis?
+- color
 
---------------------------------------------------
+- material
 
-STEP 2 — CUSTOMER PERSONA
+- design
 
-Determine who is most likely to purchase this product.
+STEP 2
 
-Consider:
+Identify the target customer.
 
-• Gender
+Think about:
 
-• Age group
+- age
 
-• Lifestyle
+- gender
 
-• Fashion preferences
+- fashion style
 
-• Shopping motivation
+- personality
 
-• Personality
+- lifestyle
 
-Do NOT output the persona.
+Use this only to determine writing style.
 
-Use it internally to guide the writing style.
+STEP 3
 
---------------------------------------------------
+Choose ONE emotional marketing angle.
 
-STEP 3 — BRAND PERSONALITY
+Possible angles:
 
-Determine the most suitable brand voice.
+- Confidence
 
-Choose the voice that naturally matches the product.
+- Comfort
 
-Examples include:
+- Minimalism
 
-Luxury
+- Luxury
 
-Minimalist
+- Elegance
 
-Modern
+- Street Style
 
-Streetwear
+- Everyday Essential
 
-Casual
+- Active Lifestyle
 
-Elegant
+- Premium Quality
 
-Sporty
+- Timeless Style
 
-Classic
+- Modern Fashion
 
-Premium
+- Self Expression
 
-Fashion-forward
+Only choose one.
 
-Young
+Build the caption around that angle.
 
-Sophisticated
+STEP 4
 
-Confident
+Create a scroll-stopping Hook.
 
-Friendly
-
-Natural
-
-Never mention the chosen brand voice.
-
-Use it consistently throughout the caption.
-
---------------------------------------------------
-
-STEP 4 — MARKETING ANGLE
-
-Identify ONE primary emotional selling angle.
-
-Examples:
-
-Confidence
-
-Self-expression
-
-Comfort
-
-Elegance
-
-Minimalism
-
-Premium Quality
-
-Everyday Essential
-
-Versatility
-
-Modern Lifestyle
-
-Active Lifestyle
-
-Timeless Style
-
-Professional Appearance
-
-Casual Everyday Fashion
-
-Trendy Look
-
-Choose only ONE dominant angle.
-
-Build the entire caption around it.
-
---------------------------------------------------
-
-STEP 5 — SCROLL-STOPPING HOOK
-
-Write an opening sentence that immediately captures attention.
-
-The hook should make users stop scrolling.
+The first sentence must make users stop scrolling.
 
 Avoid generic openings.
 
-Examples of good hooks:
+STEP 5
 
-Effortless style starts here.
+Use storytelling.
 
-Small details. Big confidence.
+Do NOT list specifications.
 
-Elevate every outfit effortlessly.
+Instead, naturally describe how the product fits into the customer's lifestyle.
 
-Designed to stand out naturally.
+Help readers imagine themselves using or wearing it.
 
-Because great style speaks first.
+STEP 6
 
-The hook should feel fresh and unique.
+Naturally mention the product's strongest characteristics.
 
---------------------------------------------------
+Blend them into the story.
 
-STEP 6 — STORYTELLING
+Never repeat attributes.
 
-Instead of listing product specifications, create a lifestyle narrative.
+STEP 7
 
-Help readers imagine themselves:
-
-wearing it
-
-using it
-
-styling it
-
-matching it with outfits
-
-feeling more confident
-
-feeling more comfortable
-
-feeling more fashionable
-
-Sell the experience.
-
-Not the specifications.
-
---------------------------------------------------
-
-STEP 7 — PRODUCT HIGHLIGHTS
-
-Naturally integrate the important product characteristics into the story.
-
-Do NOT create a bullet list.
-
-Do NOT repeat attributes.
-
-Blend them naturally into the narrative.
-
---------------------------------------------------
-
-STEP 8 — CALL TO ACTION
-
-Finish with a short, natural call-to-action.
+Finish with a natural Call-to-Action.
 
 Examples:
 
 Discover your next favorite look.
 
-Find your signature style today.
+Complete your wardrobe today.
 
-Complete your wardrobe effortlessly.
+Upgrade your everyday style.
 
-Upgrade your everyday outfit.
+Find your perfect match.
 
-Shop now and wear confidence every day.
+Shop now.
 
-Avoid aggressive sales language.
+STEP 8
 
---------------------------------------------------
+Generate 8–12 relevant hashtags.
 
-STEP 9 — HASHTAGS
+------------------------------------------------------------
 
-Generate 8–12 highly relevant hashtags.
+STRICT RULES
 
-Base them on:
+------------------------------------------------------------
 
-Product type
+The JSON is the ONLY truth.
 
-Fashion category
+Never invent:
 
-Target audience
+- colors
 
-Style
+- patterns
 
-Lifestyle
+- materials
 
-Current fashion relevance
+- sleeves
 
-Avoid spammy hashtags.
+- dresses
 
-Avoid unrelated hashtags.
+- skirts
 
---------------------------------------------------
+- shoes
+
+- accessories
+
+- logos
+
+- textures
+
+If the product type is Sunglasses,
+
+never mention dresses, shirts, pants, shoes or bags.
+
+If the product type is Shoes,
+
+never mention shirts, dresses, jackets or hats.
+
+If the product type is Pants,
+
+never mention shirts or shoes unless explicitly provided.
+
+If the product type is Hat,
+
+never mention sunglasses.
+
+If the product type is Bag,
+
+never mention clothing.
+
+Every sentence must be supported by the JSON.
+
+If a sentence contains information outside the JSON,
+
+rewrite it internally before responding.
+
+Never hallucinate.
+
+Never assume.
+
+Never guess.
+
+------------------------------------------------------------
 
 WRITING STYLE
 
---------------------------------------------------
+------------------------------------------------------------
 
-Write naturally.
+Professional.
 
-Write like a professional fashion copywriter.
+Natural.
 
-Sound human.
+Human.
 
-Avoid sounding like AI.
+Modern.
 
-Avoid repetitive wording.
+Persuasive.
 
-Avoid repetitive sentence structures.
+Premium.
 
-Avoid clichés.
+Friendly.
 
-Avoid keyword stuffing.
+Authentic.
 
-Vary sentence length.
+Avoid AI-sounding phrases.
 
-Use emotional but believable language.
+Avoid repetitive adjectives.
 
-Use vivid descriptions.
+Avoid repetitive sentence structure.
 
-Keep the flow smooth.
+Keep the caption under 50 words.
 
-Create rhythm.
+Use 2–5 relevant emojis naturally.
 
-Use conversational English.
+------------------------------------------------------------
 
---------------------------------------------------
+OUTPUT FORMAT
 
-EMOJIS
+------------------------------------------------------------
 
---------------------------------------------------
+Output ONLY the Instagram caption.
 
-Use between 2 and 5 emojis.
-
-Use them naturally.
-
-Never overuse emojis.
-
---------------------------------------------------
-
-LENGTH
-
---------------------------------------------------
-
-Maximum 150 words.
-
---------------------------------------------------
-
-OUTPUT RULES
-
---------------------------------------------------
-
-Output ONLY the final Instagram caption.
-
-Do NOT explain your reasoning.
-
-Do NOT output your analysis.
+Do NOT output analysis.
 
 Do NOT output JSON.
 
 Do NOT output Markdown.
 
+Do NOT output explanations.
+
 Do NOT output section titles.
 
-Do NOT output labels.
-
-Do NOT mention AI.
-
-Do NOT mention image analysis.
-
-Do NOT mention the model.
-
-Do NOT mention confidence scores.
-
-Return only the finished Instagram caption.
-
---------------------------------------------------
+------------------------------------------------------------
 
 INPUT
-
---------------------------------------------------
 
 Target gender: ${gender}
 Background style: ${style}
