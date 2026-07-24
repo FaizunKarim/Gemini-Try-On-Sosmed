@@ -14,16 +14,23 @@ async function urlToBase64(imageUrl) {
   return { mimeType, data: base64 };
 }
 
-async function callCloudflare(accountId, token, model, body) {
+async function callCloudflare(accountId, token, model, body, isMultipart = false) {
   const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
-  const res = await fetch(url, {
+
+  const fetchOptions = {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
+    headers: { 'Authorization': `Bearer ${token}` }
+  };
+
+  if (isMultipart) {
+    // body sudah berupa FormData, biarkan fetch set Content-Type otomatis (dengan boundary)
+    fetchOptions.body = body;
+  } else {
+    fetchOptions.headers['Content-Type'] = 'application/json';
+    fetchOptions.body = JSON.stringify(body);
+  }
+
+  const res = await fetch(url, fetchOptions);
 
   if (!res.ok) {
     const errText = await res.text();
@@ -48,27 +55,44 @@ module.exports = async function handler(req, res) {
 
   // =============================================
   // ACTION: cloudflare-image
-  // Step 1 — Flux 2 Klein 4B: Prompt → Image
+  // Step 1 — Flux 2 Klein 4B: Prompt → Image (multipart/form-data)
   // =============================================
   if (action === 'cloudflare-image') {
     if (!cfAccountId || !cfApiToken) {
       return res.status(500).json({ error: 'CF_ACCOUNT_ID or CF_API_TOKEN not configured on server' });
     }
 
-    const { prompt } = req.body || {};
+    const { prompt, image_b64, image_url } = req.body || {};
     if (!prompt) {
       return res.status(400).json({ error: 'Parameter "prompt" is required' });
     }
 
     try {
-      const result = await callCloudflare(cfAccountId, cfApiToken, CF_FLUX_MODEL, { prompt });
+      // Flux Klein 4B wajib multipart/form-data
+      const form = new FormData();
+      form.append('prompt', prompt);
+
+      // Jika ada referensi image (opsional), kirim sebagai input_image_0
+      if (image_b64 || image_url) {
+        let imgBuffer;
+        if (image_b64) {
+          const clean = image_b64.includes(',') ? image_b64.split(',')[1] : image_b64;
+          imgBuffer = Buffer.from(clean, 'base64');
+        } else {
+          const fetched = await urlToBase64(image_url);
+          imgBuffer = Buffer.from(fetched.data, 'base64');
+        }
+        const blob = new Blob([imgBuffer], { type: 'image/png' });
+        form.append('input_image_0', blob, 'reference.png');
+      }
+
+      const result = await callCloudflare(cfAccountId, cfApiToken, CF_FLUX_MODEL, form, true);
 
       if (result.type === 'json') {
         const img = result.data?.result?.image || result.data?.result;
         if (img && typeof img === 'string') {
           return res.status(200).json({ resultImage: `data:image/png;base64,${img}` });
         }
-        // fallback: return raw json for debugging
         return res.status(200).json(result.data);
       } else {
         const b64 = Buffer.from(result.data).toString('base64');
@@ -107,23 +131,11 @@ module.exports = async function handler(req, res) {
 
     const cleanB64 = image_b64.includes(',') ? image_b64.split(',')[1] : image_b64;
 
-    // Llama 3.2 Vision menggunakan format messages multimodal
+    // Cloudflare Llama Vision REST API: image dikirim sebagai field "image" di root body,
+    // prompt sebagai field "prompt" — bukan format messages[].content[].image_url (OpenAI format)
     const visionBody = {
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image_url',
-              image_url: { url: `data:image/png;base64,${cleanB64}` }
-            },
-            {
-              type: 'text',
-              text: prompt
-            }
-          ]
-        }
-      ],
+      prompt,
+      image: [`data:image/png;base64,${cleanB64}`],
       max_tokens: 600,
       temperature: 0.1,
       top_p: 0.9
@@ -172,7 +184,6 @@ module.exports = async function handler(req, res) {
   }
 
   let targetModel = model;
-  if (targetModel === 'gemini-1.5-flash') targetModel = 'gemini-1.5-flash-latest';
 
   const apiVersion = (targetModel.includes('exp-') || targetModel.includes('preview')) ? 'v1' : 'v1beta';
   const googleUrl = `https://generativelanguage.googleapis.com/${apiVersion}/models/${targetModel}:generateContent?key=${apiKey}`;

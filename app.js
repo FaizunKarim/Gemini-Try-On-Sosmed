@@ -778,7 +778,7 @@ Rules:
 
 // ── STEP 3: Google Gemini — Caption Generation (receives JSON from Vision) ────
 async function generateCaptionAi(productJson, gender, style) {
-  const apiUrl = `/api/proxy?model=gemini-1.5-flash-latest`;
+  const apiUrl = `/api/proxy?model=gemini-2.5-flash`;
 
   const productDescription = productJson
     ? (typeof productJson === 'object' ? JSON.stringify(productJson, null, 2) : String(productJson))
