@@ -798,15 +798,20 @@ Return ONLY a single valid JSON object. No markdown code blocks. No explanation.
       const text = r?.analysis || r?.text || '';
       console.log("VISION RAW TEXT:", text);
 
-      if (!text) return { type: "Other", confidence: 0.5 };
+      if (typeof text === 'object' && text !== null) {
+        return text;
+      }
+
+      if (!text || typeof text !== 'string') return { type: "Other", confidence: 0.5 };
 
       const parsed = extractFirstValidJson(text);
       if (parsed) return parsed;
 
       // Fallback jika Vision mengembalikan teks biasa tanpa JSON format
+      const strVal = String(text).trim();
       return {
-        type: text.trim().substring(0, 50) || "Other",
-        raw_text: text,
+        type: strVal.substring(0, 50) || "Other",
+        raw_text: strVal,
         confidence: 0.5
       };
     }
