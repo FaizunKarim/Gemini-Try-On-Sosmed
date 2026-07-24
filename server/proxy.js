@@ -139,7 +139,7 @@ module.exports = async function handler(req, res) {
     const visionBody = {
       prompt: prompt,
       image: imageBytes,
-      max_tokens: 500,
+      max_tokens: 256,
       temperature: 0.1,
       top_p: 0.9
     };
@@ -185,7 +185,7 @@ module.exports = async function handler(req, res) {
         model: groqModel,
         messages,
         temperature: 0.7,
-        max_tokens: 1024
+        max_tokens: 512
       })
     });
     const data = await response.json();

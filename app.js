@@ -3,7 +3,7 @@
 let uploadedImage = null;
 
 // Initialize Upload Area
-window.onload = function() {
+window.onload = function () {
   renderUploadGrid();
 };
 
@@ -155,12 +155,12 @@ function handleFileSelect(event) {
     showUploadLoading(true);
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
       uploadedImage = { type: 'base64', value: e.target.result, name: file.name };
       renderUploadGrid();
       showToast(`Gambar "${file.name}" berhasil diunggah!`, "success", "Unggah Berhasil");
     };
-    reader.onerror = function() {
+    reader.onerror = function () {
       showUploadLoading(false);
       showToast("Gagal membaca file gambar. Silakan coba lagi.", "error", "Gagal Upload");
     };
@@ -171,7 +171,7 @@ function handleFileSelect(event) {
 function showUploadLoading(show) {
   const container = document.getElementById('uploadGrid');
   if (!container) return;
-  
+
   if (show) {
     container.innerHTML = `
       <div class="border-2 border-dashed border-teal-500 bg-teal-50/20 rounded-3xl p-8 flex flex-col items-center justify-center min-h-[220px]">
@@ -247,19 +247,19 @@ function closeUrlInput() {
 async function loadImageFromUrl() {
   const urlInput = document.getElementById('urlInput');
   const imageUrl = urlInput.value.trim();
-  
+
   if (!imageUrl) {
     showToast("Masukkan URL gambar yang valid!", "warning", "URL Kosong");
     return;
   }
-  
+
   try {
     new URL(imageUrl);
   } catch (e) {
     showToast("Format URL tidak valid! Contoh: https://example.com/gambar.jpg", "error", "URL Invalid");
     return;
   }
-  
+
   uploadedImage = { type: 'url', value: imageUrl };
   renderUploadGrid();
   closeUrlInput();
@@ -268,7 +268,7 @@ async function loadImageFromUrl() {
 
 async function generateAllMockups() {
   console.log('Generate button clicked');
-  
+
   if (!uploadedImage) {
     if (window.showAlertModal) {
       showAlertModal({
@@ -820,49 +820,128 @@ Return ONLY a single valid JSON object. No markdown code blocks. No explanation.
   return result;
 }
 
-//  STEP 3: Groq  Caption Generation (menerima JSON bersih dari enrichment) 
+// ── STEP 3: Groq — Caption Generation (token-optimized) ─────────────────────
 async function generateCaptionAi(productJson, gender, style) {
   const apiUrl = `/api/proxy?action=groq-caption`;
 
   const productDescription = productJson
-    ? (typeof productJson === 'object' ? JSON.stringify(productJson, null, 2) : String(productJson))
-    : null;
+    ? (typeof productJson === 'object' ? JSON.stringify(productJson) : String(productJson))
+    : `Produk fashion ${gender}, ${style}`;
 
-  const promptText = `Kamu adalah copywriter Instagram fashion Indonesia yang menulis caption singkat, gaul, dan menjual.
+  const promptText = `Tulis caption Instagram promosi fashion Indonesia yang membuat orang berhenti scroll, membayangkan memakai produknya, lalu terdorong membuka toko.
 
-INPUT JSON:
-${productDescription || `Produk fashion untuk ${gender} dengan latar ${style}.`}
+PRODUK:
+${productDescription}
 
-ATURAN:
-- Gunakan HANYA informasi dari JSON di atas.
-- Jangan mengarang warna, bahan, atau detail yang tidak ada di JSON.
-- Jangan sebut kategori produk lain selain yang ada di JSON.
-- Tulis dalam Bahasa Indonesia yang santai dan natural  seperti teman ngobrol, bukan sales pitch.
-- Jangan gunakan kata klise: "berkualitas tinggi", "terbaik", "tak lekang waktu", "elevate your look".
-- Maksimal 40 kata (tidak termasuk hashtag).
-- Gunakan emoji yang natural.
+MODEL:
+${gender}
 
-FORMAT OUTPUT (tanpa label, langsung isinya):
-Baris 1: Hook satu kalimat yang bikin scroll berhenti.
-Baris 2: Cerita singkat gaya hidup, bukan spesifikasi.
-Baris 4: CTA satu baris yang bikin mereka action.
-Baris 5: Beri hashtag relevan dalam satu baris.
+LATAR:
+${style}
 
-CONTOH untuk Kacamata Hitam:
-Kacamata bukan sembarang kacamata. 
-Clean, confident, dan cocok ke mana aja kamu pergi.
-Gaskeun sebelum kehabisan, cek link bio!
-#kacamata #sunglasses #ootd #streetstyleindo #fashionpria #stylecheck #accessoriesootd #outfitcheck
+GUNAKAN PRINSIP COPYWRITING BERIKUT
 
-CONTOH untuk Sneakers:
-Sepatu ini pas buat jalan sama buat flex.
-Bold dan kece, pas buat anak yang gerak terus tapi tetep stylish.
-DM sekarang buat info ukuran dan harga!
-#sneakers #sepatugaul #streetwear #ootdindo #fashionpria #kicksoftheday #hypebeastindo #outfitgoals
+1. HOOK
+Kalimat pertama HARUS membuat orang berhenti scroll.
+Gunakan salah satu:
+- pertanyaan relatable
+- rasa penasaran
+- pernyataan yang bikin orang merasa "ini gue banget"
 
-OUTPUT HANYA caption-nya saja. Tidak perlu label, tidak perlu penjelasan.`;
+2. JUAL MANFAAT, BUKAN FITUR
+Jangan menjelaskan spesifikasi.
+Fokus pada bagaimana produk membuat pemakai terlihat atau merasa.
 
- // Groq pakai format OpenAI-compatible messages[]
+3. LIFESTYLE
+Hubungkan produk dengan situasi nyata.
+Misalnya:
+- nongkrong
+- ngopi
+- kuliah
+- kerja
+- jalan sore
+- weekend
+- travelling
+
+4. BANGUN EMOSI
+Buat pembaca membayangkan dirinya memakai produk.
+Gunakan nuansa:
+- percaya diri
+- effortless
+- clean look
+- santai
+- stylish
+- nyaman
+
+5. CTA
+Gunakan CTA ringan yang mendorong klik.
+Misalnya:
+- Cek detailnya di bio 👀
+- Lihat koleksi lainnya yuk.
+- DM kalau penasaran.
+- Klik profil buat lihat lengkapnya.
+
+6. HASHTAG
+Maksimal 3 hashtag relevan.
+
+VARIASI
+Jangan memakai template yang sama setiap kali.
+Variasikan pendekatan:
+- Curiosity
+- Storytelling
+- FOMO ringan
+- Confidence boost
+- Relatable moment
+- Humor ringan
+- Minimalist aesthetic
+
+====================
+CONTOH 1
+
+Masih bingung pilih outfit buat nongkrong nanti?
+Kadang yang sederhana justru paling gampang bikin percaya diri tanpa banyak usaha.
+Lihat detailnya di bio 👀
+#ootd #fashionpria #nongkrong
+
+====================
+CONTOH 2
+
+Pernah ngerasa outfit bagus tapi tetap kurang "klik"?
+Kadang yang dicari bukan yang mencolok, tapi yang bikin nyaman jadi diri sendiri.
+Klik profil buat lihat koleksinya ✨
+#fashionwanita #ootd #dailylook
+
+====================
+CONTOH 3
+
+Siapa bilang tampil rapi harus ribet?
+Buat kuliah, kerja, atau ngopi sore, yang penting tetap kelihatan effortless.
+DM kalau penasaran 😉
+#casualstyle #ootd #fashion
+
+====================
+CONTOH 4
+
+Outfit begini tuh bikin pengen keluar rumah terus.
+Simple dipakai, enak dipandang, dan cocok buat momen santai sampai jalan malam.
+Cek detailnya di bio 👀
+#dailyoutfit #fashion #ootd
+
+====================
+CONTOH 5
+
+Kalau disuruh pilih satu outfit buat dipakai berkali-kali, ini masuk kandidat nggak?
+Kadang yang paling sering dipakai justru yang bikin nyaman dan percaya diri.
+Klik profil buat lihat lengkapnya.
+#fashionindonesia #ootd #style
+
+====================
+
+OUTPUT HANYA CAPTION.
+Tidak ada label.
+Tidak ada penjelasan.`;
+
+  // Groq pakai format OpenAI-compatible messages[]
   const payload = {
     messages: [
       {
@@ -923,15 +1002,15 @@ async function fetchWithRetry(url, payload, resultExtractor, maxRetries = 3) {
           if (retryDelaySec) {
             waitMs = parseFloat(retryDelaySec) * 1000;
           }
-        } catch (_) {}
-        
+        } catch (_) { }
+
         console.warn(`Rate limited (429). Waiting ${Math.round(waitMs / 1000)}s...`);
         showToast(`Antrean server padat. Menunggu ${Math.round(waitMs / 1000)} detik...`, "warning", "Antrean Server");
-        
+
         if (attempt === maxRetries) {
           throw new Error(`HTTP Error status: ${response.status} - quota exceeded`);
         }
-        
+
         await new Promise(r => setTimeout(r, waitMs));
         continue;
       }
@@ -992,7 +1071,7 @@ function setLoadingState(isLoading) {
 
     document.getElementById('imgTryOn').classList.add('hidden');
     document.getElementById('overlayTryOn').classList.add('hidden');
-    
+
     document.getElementById('captionText').value = "Menganalisis produk & menyusun copywriting AI...";
 
   } else {
