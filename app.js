@@ -332,7 +332,7 @@ async function generateAllMockups() {
   if (imageForAnalysis) {
     try {
       showToast("Step 2/3: Menganalisis produk (Llama Vision)...", "info", "Analyzing");
-      productJson = await analyzeImageWithVision(imageForAnalysis);
+      productJson = await analyzeImageWithVision(imageForAnalysis, gender, studioStyle);
       console.log('Vision Analysis Result:', productJson);
       showToast("Analisis visual selesai!", "info", "Step 2 ✓");
     } catch (visionErr) {
@@ -649,23 +649,106 @@ Output a single ultra-realistic commercial fashion image.`;
 }
 
 // ── STEP 2: Cloudflare Llama 3.2 11B Vision — Image Analysis ─────────────────
-async function analyzeImageWithVision(imageDataUrl) {
+async function analyzeImageWithVision(imageDataUrl, gender, style) {
   const apiUrl = `/api/proxy?action=cloudflare-vision`;
 
-  const visionPrompt = `Analyze this fashion product image and return ONLY a valid JSON object with no extra text, no markdown, no code block:
+  const visionPrompt = `You are an expert fashion analyst and visual merchandising specialist.
+
+Your task is to analyze a generated fashion image and extract only factual visual information.
+
+The image always contains one primary fashion product that is intentionally highlighted.
+
+The image was generated for a ${gender} model in a ${style} setting.
+
+Focus on describing ONLY the main product being worn or used.
+
+Do not create marketing text.
+
+Do not create captions.
+
+Do not guess hidden information.
+
+Do not hallucinate.
+
+If something cannot be confirmed visually, return null.
+
+Always prioritize the product over the human model.
+
+The human model exists only to showcase the product.
+
+Never describe unnecessary facial features unless they are relevant to the product.
+
+Return ONLY valid JSON.
+
+---
+
+Analyze this fashion image.
+
+Identify the main product being showcased.
+
+Ignore irrelevant visual details.
+
+Describe only what is visually observable.
+
+Return ONLY this JSON:
+
 {
-  "product_type": "",
-  "category": "",
-  "gender": "",
-  "primary_color": "",
-  "style": "",
-  "material": "",
-  "visible_logo": "",
-  "key_features": [],
-  "background": "",
-  "overall_aesthetic": ""
+  "product": {
+    "type": "",
+    "category": "",
+    "target_gender": "",
+    "primary_color": "",
+    "secondary_colors": [],
+    "pattern": "",
+    "material": "",
+    "fit": "",
+    "style": "",
+    "season": "",
+    "visible_brand": "",
+    "logo_visible": null,
+    "condition": "new"
+  },
+  "appearance": {
+    "key_features": [],
+    "texture": "",
+    "closure_type": "",
+    "collar": "",
+    "sleeves": "",
+    "length": "",
+    "heel_type": "",
+    "sole_type": "",
+    "strap_type": ""
+  },
+  "usage": {
+    "wearing_method": "",
+    "body_area": ""
+  },
+  "photo": {
+    "camera_angle": "",
+    "shot_type": "",
+    "lighting": "",
+    "background": "",
+    "overall_aesthetic": ""
+  },
+  "confidence": 0.0
 }
-Only describe visible facts. Do not make assumptions.`;
+
+Rules:
+- Output valid JSON only.
+- No markdown.
+- No explanation.
+- No additional text.
+- Do not invent information.
+- If a value is unknown, return null.
+- Never identify a brand unless a logo is clearly readable.
+- Never infer material from color alone.
+- Never infer gender unless visually obvious.
+- Focus on the main product.
+- Ignore the identity of the model.
+- Ignore facial expression.
+- Ignore hair unless it affects the product.
+- Ignore background objects.
+- Confidence must be between 0.0 and 1.0.`;
 
   const payload = { prompt: visionPrompt };
 
